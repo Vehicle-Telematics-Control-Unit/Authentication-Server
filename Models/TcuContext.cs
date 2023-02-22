@@ -53,7 +53,7 @@ public partial class TcuContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseNpgsql("User ID =postgres;Password=postgres;Server=localhost;Port=5432;Database=TCU; Integrated Security=true;Pooling=true;");
+        => optionsBuilder.UseNpgsql("UserID=postgres;Password=postgres;Server=localhost;Port=5432;Database=TCU; Integrated Security=true;Pooling=true;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,7 +61,9 @@ public partial class TcuContext : DbContext
         {
             entity.HasKey(e => new { e.LogTimeStamp, e.ObdCode, e.TcuId }).HasName("Alerts_pkey");
 
-            entity.Property(e => e.ObdCode).HasColumnType("character(5)[]");
+            entity.Property(e => e.ObdCode)
+                .HasMaxLength(5)
+                .IsFixedLength();
 
             entity.HasOne(d => d.ObdCodeNavigation).WithMany(p => p.Alerts)
                 .HasForeignKey(d => d.ObdCode)
@@ -76,8 +78,6 @@ public partial class TcuContext : DbContext
 
         modelBuilder.Entity<AspNetRole>(entity =>
         {
-            entity.HasIndex(e => e.NormalizedName, "RoleNameIndex").IsUnique();
-
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.NormalizedName).HasMaxLength(256);
         });
@@ -91,10 +91,6 @@ public partial class TcuContext : DbContext
 
         modelBuilder.Entity<AspNetUser>(entity =>
         {
-            entity.HasIndex(e => e.NormalizedEmail, "EmailIndex");
-
-            entity.HasIndex(e => e.NormalizedUserName, "UserNameIndex").IsUnique();
-
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.NormalizedEmail).HasMaxLength(256);
             entity.Property(e => e.NormalizedUserName).HasMaxLength(256);
@@ -177,6 +173,9 @@ public partial class TcuContext : DbContext
             entity.ToTable("Device");
 
             entity.Property(e => e.DeviceId).ValueGeneratedNever();
+            entity.Property(e => e.IpAddress)
+                .HasMaxLength(15)
+                .IsFixedLength();
             entity.Property(e => e.LastLoginTime).HasDefaultValueSql("now()");
             entity.Property(e => e.UserId).HasColumnName("UserID");
 
@@ -235,7 +234,8 @@ public partial class TcuContext : DbContext
             entity.HasKey(e => e.ObdCode1).HasName("ObdCodes_pkey");
 
             entity.Property(e => e.ObdCode1)
-                .HasColumnType("character(5)[]")
+                .HasMaxLength(5)
+                .IsFixedLength()
                 .HasColumnName("ObdCode");
             entity.Property(e => e.IsGeneric)
                 .IsRequired()
@@ -287,9 +287,9 @@ public partial class TcuContext : DbContext
             entity.ToTable("TCU");
 
             entity.Property(e => e.TcuId).ValueGeneratedNever();
-            entity.Property(e => e.IpAddress).HasColumnType("character varying(15)[]");
+            entity.Property(e => e.IpAddress).HasMaxLength(15);
             entity.Property(e => e.Vin)
-                .HasColumnType("character varying(17)[]")
+                .HasMaxLength(17)
                 .HasColumnName("VIN");
 
             entity.HasOne(d => d.CurrentVersion).WithMany(p => p.Tcus)

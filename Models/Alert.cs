@@ -7,7 +7,7 @@ public partial class Alert
 {
     public long TcuId { get; set; }
 
-    public string[] ObdCode { get; set; } = null!;
+    public string ObdCode { get; set; } = null!;
 
     public DateTime LogTimeStamp { get; set; }
 

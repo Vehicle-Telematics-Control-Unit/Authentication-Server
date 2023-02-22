@@ -5,7 +5,7 @@ namespace AuthenticationServer.Models;
 
 public partial class ObdCode
 {
-    public string[] ObdCode1 { get; set; } = null!;
+    public string ObdCode1 { get; set; } = null!;
 
     public string Description { get; set; } = null!;
 

@@ -5,9 +5,9 @@ namespace AuthenticationServer.Models;
 
 public partial class Tcu
 {
-    public string[]? IpAddress { get; set; }
+    public string? IpAddress { get; set; }
 
-    public string[] Vin { get; set; } = null!;
+    public string Vin { get; set; } = null!;
 
     public long TcuId { get; set; }
 
