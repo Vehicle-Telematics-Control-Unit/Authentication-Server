@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Linq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
@@ -33,14 +34,31 @@ namespace AuthenticationServer.Controllers
             user ??= await userManager.FindByEmailAsync(username);
 
             if (user == null)
-                return NotFound();
+                return NotFound(new JObject
+                    {
+                        new JProperty("error", -1)
+                    });
+
+            //if (user.EmailConfirmed == false)
+            //    return NotFound(new JObject
+            //        {
+            //            new JProperty("error", -6)
+            //        });
 
             if (await userManager.CheckPasswordAsync(user, password))
             {
                 var device = (from _device in tcuContext.Devices where _device.DeviceId == deviceId select _device).FirstOrDefault();
 
-                if (device == null || device.UserId != user.Id)
-                    return Unauthorized();
+                if (device == null)
+                    return Unauthorized(new JObject
+                    {
+                        new JProperty("error", -2)
+                    });
+                if (device.UserId != user.Id)
+                    return Unauthorized(new JObject
+                    {
+                        new JProperty("error", -3)
+                    });
 
                 device.LastLoginTime = DateTime.UtcNow;
                 #pragma warning disable CS8602 // Possible null reference argument.
@@ -62,16 +80,22 @@ namespace AuthenticationServer.Controllers
                 {
                     authClaims.Add(new Claim(ClaimTypes.Role, userRole));
                 }
+
                 authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
                 var token = GenerateJwtToken(authClaims);
 
                 return Ok(new
                 {
                     token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo
+                    expiration = token.ValidTo,
+                    username = user.UserName,
+                    email = user.Email,
                 });
             }
-            return Unauthorized();
+            return Unauthorized(new JObject
+                    {
+                        new JProperty("error", -5)
+                    });
         }
 
         private JwtSecurityToken GenerateJwtToken(List<Claim> authClaims)
