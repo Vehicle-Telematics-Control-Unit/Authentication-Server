@@ -1,4 +1,5 @@
 ﻿using AuthenticationServer.Models;
+using AuthenticationServer.Models.Commands;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -25,13 +26,15 @@ namespace AuthenticationServer.Controllers
             _config = config;
         }
 
+
         [HttpPost]
         [Route("login")]
-        public async Task<IActionResult> Login(string username, string password, long deviceId)
+      
+        public async Task<IActionResult> Login([FromBody] UserCommand userCommand)
         {
-            var user = await userManager.FindByNameAsync(username);
+            var user = await userManager.FindByNameAsync(userCommand.Username);
 
-            user ??= await userManager.FindByEmailAsync(username);
+            user ??= await userManager.FindByEmailAsync(userCommand.Username);
 
             if (user == null)
                 return NotFound(new JObject
@@ -45,9 +48,9 @@ namespace AuthenticationServer.Controllers
             //            new JProperty("error", -6)
             //        });
 
-            if (await userManager.CheckPasswordAsync(user, password))
+            if (await userManager.CheckPasswordAsync(user, userCommand.Password))
             {
-                var device = (from _device in tcuContext.Devices where _device.DeviceId == deviceId select _device).FirstOrDefault();
+                var device = (from _device in tcuContext.Devices where _device.DeviceId == userCommand.DeviceId select _device).FirstOrDefault();
 
                 if (device == null)
                     return Unauthorized(new JObject
