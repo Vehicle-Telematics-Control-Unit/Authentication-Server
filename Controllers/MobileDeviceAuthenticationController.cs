@@ -37,10 +37,11 @@ namespace AuthenticationServer.Controllers
             user ??= await userManager.FindByEmailAsync(userCommand.Username);
 
             if (user == null)
-                return NotFound(new JObject
-                    {
-                        new JProperty("error", -1)
-                    });
+                return Unauthorized(new
+                {
+                    errorCode= -1,
+                    
+                }); 
 
             //if (user.EmailConfirmed == false)
             //    return NotFound(new JObject
@@ -55,6 +56,7 @@ namespace AuthenticationServer.Controllers
                 if (device == null)
                     return Unauthorized(new JObject
                     {
+                        
                         new JProperty("error", -2)
                     });
                 if (device.UserId != user.Id)
@@ -95,10 +97,14 @@ namespace AuthenticationServer.Controllers
                     email = user.Email,
                 });
             }
-            return Unauthorized(new JObject
+            return Unauthorized(new
+            {
+                errorCode=-2
+            });
+            /*return Unauthorized(new JObject
                     {
                         new JProperty("error", -5)
-                    });
+                    });*/
         }
 
         private JwtSecurityToken GenerateJwtToken(List<Claim> authClaims)

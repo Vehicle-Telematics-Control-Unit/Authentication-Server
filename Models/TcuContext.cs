@@ -136,7 +136,7 @@ public partial class TcuContext : DbContext
         {
             entity.HasKey(e => new { e.TcuId, e.DeviceId, e.CreationTimeStamp }).HasName("ConnectionRequests_pkey");
 
-            entity.Property(e => e.DeviceId).HasMaxLength(15);
+            entity.Property(e => e.DeviceId).HasMaxLength(150);
             entity.Property(e => e.CreationTimeStamp).HasDefaultValueSql("now()");
 
             entity.HasOne(d => d.Device).WithMany(p => p.ConnectionRequests)
@@ -173,7 +173,7 @@ public partial class TcuContext : DbContext
 
             entity.ToTable("Device");
 
-            entity.Property(e => e.DeviceId).HasMaxLength(15);
+            entity.Property(e => e.DeviceId).HasMaxLength(150);
             entity.Property(e => e.IpAddress).HasMaxLength(15);
             entity.Property(e => e.LastLoginTime).HasDefaultValueSql("now()");
             entity.Property(e => e.UserId).HasColumnName("UserID");
@@ -190,7 +190,7 @@ public partial class TcuContext : DbContext
 
             entity.ToTable("DevicesTcu");
 
-            entity.Property(e => e.DeviceId).HasMaxLength(15);
+            entity.Property(e => e.DeviceId).HasMaxLength(150);
             entity.Property(e => e.IsActive)
                 .IsRequired()
                 .HasDefaultValueSql("true")
@@ -212,7 +212,7 @@ public partial class TcuContext : DbContext
         {
             entity.HasKey(e => new { e.TcuId, e.DeviceId, e.CreationTimeStamp }).HasName("LockRequests_pkey");
 
-            entity.Property(e => e.DeviceId).HasMaxLength(15);
+            entity.Property(e => e.DeviceId).HasMaxLength(150);
             entity.Property(e => e.CreationTimeStamp).HasDefaultValueSql("now()");
 
             entity.HasOne(d => d.Device).WithMany(p => p.LockRequests)
