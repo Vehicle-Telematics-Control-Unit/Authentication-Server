@@ -5,7 +5,7 @@ namespace AuthenticationServer.Models;
 
 public partial class DevicesTcu
 {
-    public long DeviceId { get; set; }
+    public string DeviceId { get; set; } = null!;
 
     public long TcuId { get; set; }
 

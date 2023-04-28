@@ -7,7 +7,7 @@ public partial class LockRequest
 {
     public long TcuId { get; set; }
 
-    public long DeviceId { get; set; }
+    public string DeviceId { get; set; } = null!;
 
     public DateTime CreationTimeStamp { get; set; }
 

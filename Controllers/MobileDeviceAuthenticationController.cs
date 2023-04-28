@@ -68,7 +68,7 @@ namespace AuthenticationServer.Controllers
                 device.IpAddress = Request.HttpContext.Connection.RemoteIpAddress.ToString();
 
                 #pragma warning restore CS8602 // Possible null reference argument.
-
+                
                 await tcuContext.SaveChangesAsync();
                 
                 var authClaims = new List<Claim>
