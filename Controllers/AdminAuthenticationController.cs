@@ -36,7 +36,8 @@ namespace AuthenticationServer.Controllers
             {
                 Email = email,
                 UserName = username,
-                SecurityStamp = Guid.NewGuid().ToString()
+                SecurityStamp = Guid.NewGuid().ToString(),
+                TwoFactorEnabled=true
             };
 
             var result = await userManager.CreateAsync(user, password);

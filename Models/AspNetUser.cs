@@ -45,6 +45,8 @@ public partial class AspNetUser
 
     public virtual ICollection<Device> Devices { get; } = new List<Device>();
 
+    public virtual ICollection<Otptoken> Otptokens { get; } = new List<Otptoken>();
+
     public virtual ICollection<Tcu> Tcus { get; } = new List<Tcu>();
 
     public virtual ICollection<AspNetRole> Roles { get; } = new List<AspNetRole>();
