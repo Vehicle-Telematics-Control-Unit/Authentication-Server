@@ -97,6 +97,7 @@ namespace AuthenticationServer.Controllers
 #pragma warning disable CS8602 // Possible null reference argument.
                 device.IpAddress = Request.HttpContext.Connection.RemoteIpAddress.ToString();
 
+
 #pragma warning restore CS8602 // Possible null reference argument.
 
                 await tcuContext.SaveChangesAsync();

@@ -15,6 +15,10 @@ public partial class Tcu
 
     public string UserId { get; set; } = null!;
 
+    public string? Thumbprint { get; set; }
+
+    public bool IsValidated { get; set; }
+
     public virtual ICollection<Alert> Alerts { get; } = new List<Alert>();
 
     public virtual ICollection<ConnectionRequest> ConnectionRequests { get; } = new List<ConnectionRequest>();
