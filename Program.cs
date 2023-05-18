@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using AuthenticationServer.Data;
 using System.Text;
 using AuthenticationServer.Models;
+using AuthenticationServer.Configurations;
+using AuthenticationServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +17,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.Configure<EmailConfiguration>(builder.Configuration.GetSection(nameof(EmailConfiguration)));
+
+
+builder.Services.AddTransient<IMailService, MailService>();
 builder.Services.AddDbContext<TcuContext>(options =>
         options.UseNpgsql(
             builder.Configuration.GetConnectionString("IdentityServerConnection")));
