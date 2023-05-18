@@ -13,11 +13,13 @@ public partial class Tcu
 
     public long CurrentVersionId { get; set; }
 
-    public string UserId { get; set; } = null!;
+    public string? UserId { get; set; }
 
-    public string? Thumbprint { get; set; }
+    public string Mac { get; set; } = null!;
 
     public bool IsValidated { get; set; }
+
+    public byte[]? Challenge { get; set; }
 
     public virtual ICollection<Alert> Alerts { get; } = new List<Alert>();
 
@@ -29,5 +31,5 @@ public partial class Tcu
 
     public virtual ICollection<LockRequest> LockRequests { get; } = new List<LockRequest>();
 
-    public virtual AspNetUser User { get; set; } = null!;
+    public virtual AspNetUser? User { get; set; }
 }

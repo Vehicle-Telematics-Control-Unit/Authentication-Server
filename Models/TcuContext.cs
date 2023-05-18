@@ -289,8 +289,9 @@ public partial class TcuContext : DbContext
 
             entity.Property(e => e.TcuId).ValueGeneratedNever();
             entity.Property(e => e.IpAddress).HasMaxLength(15);
-            entity.Property(e => e.IsValidated).HasColumnName("isValidated");
-            entity.Property(e => e.Thumbprint).HasColumnType("character varying");
+            entity.Property(e => e.Mac)
+                .HasMaxLength(17)
+                .HasColumnName("MAC");
             entity.Property(e => e.Vin)
                 .HasMaxLength(17)
                 .HasColumnName("VIN");
@@ -302,7 +303,6 @@ public partial class TcuContext : DbContext
 
             entity.HasOne(d => d.User).WithMany(p => p.Tcus)
                 .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("TCU_AspNetUsers");
         });
 

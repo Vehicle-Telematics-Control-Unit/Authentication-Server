@@ -5,15 +5,23 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Org.BouncyCastle.Crypto;
+
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
-using Org.BouncyCastle.Pkcs;
-using System.Security.Cryptography.X509Certificates;
-using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Asn1.X509;
-using Org.BouncyCastle.Crypto.Operators;
+using Org.BouncyCastle.Math;
+using Org.BouncyCastle.Crypto.Prng;
+using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Encodings;
+using System.Text.RegularExpressions;
+using Org.BouncyCastle.Asn1;
+using System.Net.Mail;
+using Org.BouncyCastle.X509.Extension;
 
 namespace AuthenticationServer.Controllers
 {
@@ -34,36 +42,89 @@ namespace AuthenticationServer.Controllers
 
         [HttpPost]
         [Route("login")]
-        public async Task<IActionResult> Login(string VIN, IFormFile certificate)
+        public async Task<IActionResult> Login(IFormFile challenge, IFormFile certificate)
         {
+            byte[] challengeBytes;
+
+            using (var stream = new MemoryStream())
+            {
+                await challenge.CopyToAsync(stream);
+                challengeBytes = stream.ToArray();
+            }
+
             byte[] bytes = new byte[certificate.Length];
-            X509Certificate2 x509Certificate;
+            X509Certificate tcuCertificate;
             using (var reader = certificate.OpenReadStream())
             {
                 await reader.ReadAsync(bytes.AsMemory(0, (int)certificate.Length));
-                x509Certificate = new(bytes);
+                var parser = new X509CertificateParser();
+                tcuCertificate = parser.ReadCertificate(bytes);
             }
 
-            var vehicle = (from _vehicle in tcuContext.Tcus
-                           where _vehicle.IsValidated
-                           && _vehicle.Vin == VIN
-                           && _vehicle.Thumbprint == x509Certificate.Thumbprint
-                           select _vehicle).FirstOrDefault();
+            RsaKeyParameters keyPair;
 
-            if (vehicle == null)
+            using (FileStream pemFileStream = new FileStream(@"D:\Valeo\Graduation project\AuthenticationServer\AuthenticationServer\Licences\public_key.pem", FileMode.Open))
+            {
+                var pemReader = new PemReader(new StreamReader(pemFileStream));
+                keyPair = (RsaKeyParameters)pemReader.ReadObject();
+            }
+
+
+            try
+            {
+                tcuCertificate.Verify(keyPair);
+            }
+            catch
+            {
                 return Unauthorized();
-            var user = await userManager.FindByIdAsync(vehicle.UserId);
+            }
+
+
+            DerObjectIdentifier macAddressOid = new DerObjectIdentifier("2.5.29.48"); // OID for subject alternative name
+            Asn1OctetString macAddressExtension = tcuCertificate.GetExtensionValue(macAddressOid);
+            string MAC = Encoding.UTF8.GetString(macAddressExtension.GetOctets());
+            MAC = MAC.Substring(MAC.Length - 17);
+
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+            Tcu tcu = (from _tcu in tcuContext.Tcus
+                       where _tcu.Mac == MAC
+                       //&& _tcu.Challenge == challengeBytes
+                       select _tcu).FirstOrDefault();
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+
+            if (tcu == null)
+                return Unauthorized();
+
+            if (tcu.Challenge == null)
+                return BadRequest();
+
+            string secret = Convert.ToBase64String(tcu.Challenge);
+
+            IAsymmetricBlockCipher engine = new RsaEngine();
+            engine.Init(true, tcuCertificate.GetPublicKey());
+
+
+            // Convert the hash bytes to a hexadecimal string representation
+            var encryptedChallenge = engine.ProcessBlock(challengeBytes, 0, challengeBytes.Length);
+            string tcuChallenge = Convert.ToBase64String(encryptedChallenge);
+            
+            if (secret != tcuChallenge)
+                return Forbid();
+
+
+
+            var user = await userManager.FindByIdAsync(tcu.UserId);
             #pragma warning disable CS8602 // Possible null reference argument.
-            vehicle.IpAddress = Request.HttpContext.Connection.RemoteIpAddress.ToString();
+            tcu.IpAddress = Request.HttpContext.Connection.RemoteIpAddress.ToString();
             #pragma warning restore CS8602 // Possible null reference argument.
             await tcuContext.SaveChangesAsync();
 
             var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, vehicle.Vin),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("TCU", "True")
-            };
+                {
+                    new Claim(ClaimTypes.Name, tcu.Vin),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim("TCU", "True")
+                };
 
             var token = GenerateJwtToken(authClaims);
             return Ok(new
@@ -76,81 +137,135 @@ namespace AuthenticationServer.Controllers
 
         [HttpPost]
         [Route("csr")]
-        public async Task<IActionResult> SubmitCsr(IFormFile tcuCertificate, string VIN)
+        public async Task<IActionResult> SubmitCsr(IFormFile csrRequest,string VIN)
         {
-            byte[] certificateData = System.IO.File.ReadAllBytes(@"D:\AASTMT\Graduation project\AuthenticationServer\AuthenticationServer\Licences\VehiclePlus.crt");
-            X509Certificate2 rootCertificate = new(certificateData);
-
-            byte[] bytes = new byte[tcuCertificate.Length];
-            Pkcs10CertificationRequest csr;
-
-            using (var reader = tcuCertificate.OpenReadStream())
-            {
-                await reader.ReadAsync(bytes.AsMemory(0, (int)tcuCertificate.Length));
-                csr = new Pkcs10CertificationRequest(bytes);
-            }
-
-            // Verify the CSR
-            if (!csr.Verify())
-            {
-                // CSR signature is not valid
-                return BadRequest();
-            }
-
             Tcu? tcu = (from _tcu in tcuContext.Tcus
-                       where _tcu.Vin == VIN
-                       && _tcu.IsValidated == false
-                       select _tcu).FirstOrDefault();
+                        where _tcu.Vin == VIN
+                        && _tcu.IsValidated == false
+                        select _tcu).FirstOrDefault();
 
-            if (tcu == null)
-                return BadRequest();
+            byte[] bytes = new byte[csrRequest.Length];
+            X509Certificate chainedCertificate;
 
-            // Verify the CSR
-            if (tcu == null || !csr.Verify())
+            using (var reader = csrRequest.OpenReadStream())
             {
-                // CSR signature is not valid
-                return BadRequest();
+                await reader.ReadAsync(bytes.AsMemory(0, (int)csrRequest.Length));
+                var loadedCsr = new Pkcs10CertificationRequest(bytes);
+                // Read the private key from the PEM file
+                RsaPrivateCrtKeyParameters rsaParams;
+                using (FileStream pemFileStream = new FileStream(@"D:\Valeo\Graduation project\AuthenticationServer\AuthenticationServer\Licences\private_key.pem", FileMode.Open))
+                {
+                    var pemReader = new PemReader(new StreamReader(pemFileStream));
+                    rsaParams = (RsaPrivateCrtKeyParameters)pemReader.ReadObject();
+                }
+
+                // Create a new X509V3CertificateGenerator object
+                var certGen = new X509V3CertificateGenerator();
+
+
+                byte[] certificateData = System.IO.File.ReadAllBytes(@"D:\Valeo\Graduation project\AuthenticationServer\AuthenticationServer\Licences\certificate.crt");
+
+                X509CertificateParser parser = new X509CertificateParser();
+                X509Certificate certificate = parser.ReadCertificate(certificateData);
+
+                certGen.SetIssuerDN(certificate.IssuerDN);
+                certGen.SetSubjectDN(certificate.SubjectDN);
+
+                // Set the validity period
+                var notBefore = DateTime.UtcNow.Date;
+                var notAfter = notBefore.AddDays(365);
+                certGen.SetNotBefore(certificate.NotBefore);
+                certGen.SetNotAfter(certificate.NotAfter);
+
+                // Set the public key
+                certGen.SetPublicKey(loadedCsr.GetPublicKey());
+
+                // Set the signature algorithm
+                certGen.SetSignatureAlgorithm("SHA256WithRSA");
+
+                var serialNumber = BigInteger.ProbablePrime(128, new Random());
+
+                certGen.SetSerialNumber(serialNumber);
+
+                // Create a new instance of SecureRandom
+                SecureRandom random = new SecureRandom(new DigestRandomGenerator(new Sha256Digest()));
+                GeneralName macAddressName = new GeneralName(GeneralName.OtherName, new DerUtf8String(tcu.Mac));
+                Asn1Encodable macAddressExtensionValue = new GeneralNames(macAddressName);
+                X509Extension macAddressExtension = new X509Extension(false, new DerOctetString(macAddressExtensionValue));
+                certGen.AddExtension("2.5.29.48", true, macAddressExtensionValue);
+
+                // Create the signed certificate
+                chainedCertificate = certGen.Generate(rsaParams, random);
             }
 
-
-            // Generate the certificate serial number
-            var serialNumber = DateTime.Now.Ticks;
-
-            // Create the certificate generator
-            var certGenerator = new X509V3CertificateGenerator();
-
-
-            // Set the certificate properties
-            certGenerator.SetSerialNumber(new BigInteger(serialNumber.ToString()));
-            certGenerator.SetSubjectDN(csr.GetCertificationRequestInfo().Subject);
-            byte[] x500Bytes = rootCertificate.SubjectName.RawData;
-
-            // Parse the byte array to get an X509Name object
-            X509Name x509Name = X509Name.GetInstance(x500Bytes);
-
-            certGenerator.SetIssuerDN(x509Name);
-            certGenerator.SetNotBefore(DateTime.UtcNow.Date);
-            certGenerator.SetNotAfter(DateTime.UtcNow.Date.AddDays(365));
-            certGenerator.SetPublicKey(csr.GetPublicKey());
-
-            string privateKey = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXj0plHTLop+Xa7wDVkWiiwohTxdGUPe1+LaWLhdbjSMmXapVlx3jTzeBpijRyxbOKZ6MkJ+fp0jOlmX02aSuhirUJL1VP6tg9diVAQiDjrQuOEyGtVhwsq4R2pKNe28jeB8BiCs37+i4lML8bWbHeK1yK9l2dgqXbhiOtGRwizh12CLwvpnSn2XEOXb7f4toatE63nKK9os3s77BwRBH2zJF9fQEwmDUZ2vc2bjRZhmDZmkoI5TPpWFjwEVcfyhVsv/Pm2gYYQAcjCB0QVyfs73mm9hAJ0pc5r3Mr8OG7KVJ3g0dM+tg2QxvCvVCd9id9QSV5Sc4PP+4e0Zh0p3epAgMBAAECggEAZ4dWf8HKVZtt9fycNfakfqdXuoRj6ALmMZfSznP1hSvMRoDWSA/JpFBY29eY4Ra66FpmLFNOOyrNy1cwoBVa8zcfQ84L91ofiUVZFser7C2MQyxFHG8jEQE/mYvxOvnsO1cVuwDddYvu5cXHw2cM2luREtzIkYHSDuEZ+WT58mySSm/3ypWbP2z3g0pGxGlmX9YGZhJbrSfC/uK8pOe/yYYk4BrxhZ4xNGtwflBnCVNqSIX9ES+Od2BNxjqukeAJkSg0DpaR2MzaH0CbwEVk3BHz0aqixClBV98/uCQktuziodeI6JUxhoORfWwWkK34rTv/UT8LW+ygykyufTJIQQKBgQDzAl6e7Jq9S+k8tFxIv2kcnLZFd8glQhv50+T+qK7H857ety9FV9V9zwX8M6H1nlLyvatPlZW6R/SmgpyXKK5Aw6nu4s74xSN2yjZzpLKkODXD9wnMFxniKcpT6bzkQ6+hgMcVeJsKHZva4oDOKicLzY5M5pC17R++q0zGXCkb5QKBgQDjFUTKDhI1OEfbNbeYbVEE5DT3ObUt8ahWAxFuu4r4eZ1McN/K301QoV0fXkXGvIweFEDqUiePb5/XM5Od7ndh4BWejCvXbE1v0DlzBMPNQCNHgIC1bpsfb1dZCqu8cP0DYSoiBInBUDXYJSC6C2g6iKdj1eqaqbjjXa1qRLtYdQKBgQC43GGcpkMko52/ZzkYwju032YtPGzOIxdjGpWGQE4Nn7+Ij3PvXVz0Qsu7yo93aMSTEkRC23k2Z0yuaoey2eiNLguUxYdLabSLxlJb8LtQ/82u0LvsPNqc2MuowBPI1dDCnFNWexP+Qv3wKgRwUVK4wNtylqcZLlTK2EckUrGXHQKBgFnm37cG3xqGz5vvpmIIVV0UZAvEowAvfi+fQ1WNljVNIINU5KTSxy8200FJ92H435hA+HpMUDEvRh7S4oxSDp2HM8fzQqAk1nt/+l6Y8lPeIpl6PHqX8X3+fJxZ5yfRq7mczCtvlIIeGVMbT9uYDImv9GVIGXtl2jbZrYA2+dzJAoGAVUNOnaTm09EmZnXD3d7oxixWLKXMu7rgJVLzTiN/qrUO5/qJJVEDPJ1ZX0tsyy/JbeLOwincj0J7JbU3ljtPEXXqrR7Rv3mTzVef1TqxP8qOjaz+xRGpBK4PuV3J2Few7id6hAr7SCDHIkfFr25dmRwfa5A6zdPgajLmnkE5CBk=";
-            byte[] keyBytes = Convert.FromBase64String(privateKey);
-
-            RsaPrivateCrtKeyParameters rsaPrivateKey = (RsaPrivateCrtKeyParameters)PrivateKeyFactory.CreateKey(keyBytes);
-            ISignatureFactory signatureFactory = new Asn1SignatureFactory("SHA256WithRSA", rsaPrivateKey);
-            // Sign the certificate with the root private key
-            var cert = certGenerator.Generate(signatureFactory);
-
-            // Convert the certificate to X509Certificate2
-            var x509Certificate = new X509Certificate2(cert.GetEncoded());
-
-            tcu.Thumbprint = x509Certificate.Thumbprint;
+            // Export the certificate to a byte array
+            byte[] certBytes = chainedCertificate.GetEncoded();
             tcu.IsValidated = true;
 
+            return File(certBytes, "application/x-x509-ca-cert", "ChainedCertficate.cer");
+        }
+
+        [HttpPost]
+        [Route("challenge")]
+        public async Task<IActionResult> requestChallenge(IFormFile chainedCerticate, string VIN)
+        {
+            X509Certificate cert;
+            using (var reader = chainedCerticate.OpenReadStream())
+            {
+                byte[] bytes = new byte[chainedCerticate.Length];
+                await reader.ReadAsync(bytes.AsMemory(0, (int)chainedCerticate.Length));
+                cert = new X509Certificate(bytes);
+            }
+
+
+            X509Certificate serverCertificate;
+
+            
+           byte[] certBytes = System.IO.File.ReadAllBytes(@"D:\Valeo\Graduation project\AuthenticationServer\AuthenticationServer\Licences\certificate.crt");
+           serverCertificate = new X509Certificate(certBytes);
+            try
+            {
+                cert.Verify(serverCertificate.GetPublicKey());
+            }
+            catch
+            {
+                return Unauthorized();
+            }
+
+            var publicKey = cert.GetPublicKey();
+
+            SecureRandom random = new SecureRandom(new DigestRandomGenerator(new Sha256Digest()));
+            // Generate a random 32-byte array
+
+
+            // Compute the SHA256 hash of the random bytes
+            IDigest digest = DigestUtilities.GetDigest("SHA256");
+            byte[] challenge = new byte[digest.GetDigestSize()];
+
+            digest.BlockUpdate(challenge, 0, challenge.Length);
+
+            digest.DoFinal(challenge, 0);
+            
+            Tcu tcu = (from _tcu in tcuContext.Tcus
+                       where _tcu.Vin == VIN
+                       select _tcu).First();
+
+            
+            string str = Convert.ToBase64String(challenge);
+            
+
+            IAsymmetricBlockCipher engine = new RsaEngine();
+            engine.Init(true, publicKey);
+
+            // Convert the hash bytes to a hexadecimal string representation
+            var encryptedChallenge = engine.ProcessBlock(challenge, 0, challenge.Length);
+            tcu.Challenge = encryptedChallenge;
+            tcuContext.SaveChanges();
+
             return File(
-                x509Certificate.Export(X509ContentType.Cert),
-                "application/x-x509-ca-cert",
-                "cert.cer");
+                encryptedChallenge,
+                "application/octet-stream", 
+                "challenge.bin");
         }
 
 
