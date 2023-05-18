@@ -45,6 +45,8 @@ public partial class TcuContext : DbContext
 
     public virtual DbSet<ObdSubSystemCode> ObdSubSystemCodes { get; set; }
 
+    public virtual DbSet<Otptoken> Otptokens { get; set; }
+
     public virtual DbSet<RequestStatus> RequestStatuses { get; set; }
 
     public virtual DbSet<SoftwareVersion> SoftwareVersions { get; set; }
@@ -53,7 +55,7 @@ public partial class TcuContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseNpgsql("UserID=postgres;Password=postgres;Server=localhost;Port=5432;Database=TCU; Integrated Security=true;Pooling=true;");
+        => optionsBuilder.UseNpgsql("UserID=postgres;Password=nada@123;Server=localhost;Port=5432;Database=TCU; Integrated Security=true;Pooling=true;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -258,6 +260,25 @@ public partial class TcuContext : DbContext
             entity.Property(e => e.SubsystemId)
                 .HasMaxLength(1)
                 .ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<Otptoken>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("otptokens_pkey");
+
+            entity.ToTable("otptokens");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Token).HasColumnName("token");
+            entity.Property(e => e.Userid).HasColumnName("userid");
+            entity.Property(e => e.Verifiedat)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("verifiedat");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Otptokens)
+                .HasForeignKey(d => d.Userid)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OTP_USERS");
         });
 
         modelBuilder.Entity<RequestStatus>(entity =>
