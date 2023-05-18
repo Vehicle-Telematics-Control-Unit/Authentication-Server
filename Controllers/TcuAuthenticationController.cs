@@ -106,16 +106,12 @@ namespace AuthenticationServer.Controllers
 
             IAsymmetricBlockCipher engine = new RsaEngine();
             engine.Init(true, tcuCertificate.GetPublicKey());
-
-
             // Convert the hash bytes to a hexadecimal string representation
             var encryptedChallenge = engine.ProcessBlock(challengeBytes, 0, challengeBytes.Length);
             string tcuChallenge = Convert.ToBase64String(encryptedChallenge);
             
             if (secret != tcuChallenge)
                 return Forbid();
-
-
 
             var user = await userManager.FindByIdAsync(tcu.UserId);
             #pragma warning disable CS8602 // Possible null reference argument.
