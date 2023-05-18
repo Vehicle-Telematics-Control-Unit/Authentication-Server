@@ -35,19 +35,19 @@ public partial class AspNetUser
 
     public int AccessFailedCount { get; set; }
 
-    public virtual ICollection<AspNetUserClaim> AspNetUserClaims { get; } = new List<AspNetUserClaim>();
+    public virtual ICollection<AspNetUserClaim> AspNetUserClaims { get; set; } = new List<AspNetUserClaim>();
 
-    public virtual ICollection<AspNetUserLogin> AspNetUserLogins { get; } = new List<AspNetUserLogin>();
+    public virtual ICollection<AspNetUserLogin> AspNetUserLogins { get; set; } = new List<AspNetUserLogin>();
 
-    public virtual ICollection<AspNetUserToken> AspNetUserTokens { get; } = new List<AspNetUserToken>();
+    public virtual ICollection<AspNetUserToken> AspNetUserTokens { get; set; } = new List<AspNetUserToken>();
 
-    public virtual ICollection<ContactMethod> ContactMethods { get; } = new List<ContactMethod>();
+    public virtual ICollection<ContactMethod> ContactMethods { get; set; } = new List<ContactMethod>();
 
-    public virtual ICollection<Device> Devices { get; } = new List<Device>();
+    public virtual ICollection<Device> Devices { get; set; } = new List<Device>();
 
-    public virtual ICollection<Otptoken> Otptokens { get; } = new List<Otptoken>();
+    public virtual ICollection<Otptoken> Otptokens { get; set; } = new List<Otptoken>();
 
-    public virtual ICollection<Tcu> Tcus { get; } = new List<Tcu>();
+    public virtual ICollection<Tcu> Tcus { get; set; } = new List<Tcu>();
 
-    public virtual ICollection<AspNetRole> Roles { get; } = new List<AspNetRole>();
+    public virtual ICollection<AspNetRole> Roles { get; set; } = new List<AspNetRole>();
 }

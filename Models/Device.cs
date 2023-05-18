@@ -13,11 +13,11 @@ public partial class Device
 
     public string? IpAddress { get; set; }
 
-    public virtual ICollection<ConnectionRequest> ConnectionRequests { get; } = new List<ConnectionRequest>();
+    public virtual ICollection<ConnectionRequest> ConnectionRequests { get; set; } = new List<ConnectionRequest>();
 
-    public virtual ICollection<DevicesTcu> DevicesTcus { get; } = new List<DevicesTcu>();
+    public virtual ICollection<DevicesTcu> DevicesTcus { get; set; } = new List<DevicesTcu>();
 
-    public virtual ICollection<LockRequest> LockRequests { get; } = new List<LockRequest>();
+    public virtual ICollection<LockRequest> LockRequests { get; set; } = new List<LockRequest>();
 
     public virtual AspNetUser User { get; set; } = null!;
 }

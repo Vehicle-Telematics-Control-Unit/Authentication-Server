@@ -17,11 +17,9 @@ using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Digests;
-using Org.BouncyCastle.Crypto.Encodings;
-using System.Text.RegularExpressions;
 using Org.BouncyCastle.Asn1;
-using System.Net.Mail;
-using Org.BouncyCastle.X509.Extension;
+using Org.BouncyCastle.Crypto.Operators;
+using System.Runtime.ConstrainedExecution;
 
 namespace AuthenticationServer.Controllers
 {
@@ -87,7 +85,7 @@ namespace AuthenticationServer.Controllers
 
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
             Tcu tcu = (from _tcu in tcuContext.Tcus
-                       where _tcu.Mac == MAC
+                       //where _tcu.Mac == MAC
                        //&& _tcu.Challenge == challengeBytes
                        select _tcu).FirstOrDefault();
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
@@ -97,6 +95,12 @@ namespace AuthenticationServer.Controllers
 
             if (tcu.Challenge == null)
                 return BadRequest();
+
+            if (DateTime.Now > tcu.ExpiresAt)
+                return Ok(new
+                {
+                    statusCode = -1
+                });
 
             string secret = Convert.ToBase64String(tcu.Challenge);
 
@@ -141,7 +145,7 @@ namespace AuthenticationServer.Controllers
         {
             Tcu? tcu = (from _tcu in tcuContext.Tcus
                         where _tcu.Vin == VIN
-                        && _tcu.IsValidated == false
+                        //&& _tcu.IsValidated == false
                         select _tcu).FirstOrDefault();
 
             byte[] bytes = new byte[csrRequest.Length];
@@ -180,9 +184,6 @@ namespace AuthenticationServer.Controllers
                 // Set the public key
                 certGen.SetPublicKey(loadedCsr.GetPublicKey());
 
-                // Set the signature algorithm
-                certGen.SetSignatureAlgorithm("SHA256WithRSA");
-
                 var serialNumber = BigInteger.ProbablePrime(128, new Random());
 
                 certGen.SetSerialNumber(serialNumber);
@@ -193,15 +194,13 @@ namespace AuthenticationServer.Controllers
                 Asn1Encodable macAddressExtensionValue = new GeneralNames(macAddressName);
                 X509Extension macAddressExtension = new X509Extension(false, new DerOctetString(macAddressExtensionValue));
                 certGen.AddExtension("2.5.29.48", true, macAddressExtensionValue);
-
+                ISignatureFactory signatureFactory = new Asn1SignatureFactory("SHA256WithRSA", rsaParams, random);
                 // Create the signed certificate
-                chainedCertificate = certGen.Generate(rsaParams, random);
+                chainedCertificate = certGen.Generate(signatureFactory);
             }
 
             // Export the certificate to a byte array
             byte[] certBytes = chainedCertificate.GetEncoded();
-            tcu.IsValidated = true;
-
             return File(certBytes, "application/x-x509-ca-cert", "ChainedCertficate.cer");
         }
 
@@ -260,6 +259,7 @@ namespace AuthenticationServer.Controllers
             // Convert the hash bytes to a hexadecimal string representation
             var encryptedChallenge = engine.ProcessBlock(challenge, 0, challenge.Length);
             tcu.Challenge = encryptedChallenge;
+            tcu.ExpiresAt = DateTime.Now.AddHours(12);
             tcuContext.SaveChanges();
 
             return File(

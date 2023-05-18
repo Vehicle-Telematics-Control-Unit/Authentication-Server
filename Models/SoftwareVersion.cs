@@ -13,9 +13,9 @@ public partial class SoftwareVersion
 
     public long? PreviousVersion { get; set; }
 
-    public virtual ICollection<SoftwareVersion> InversePreviousVersionNavigation { get; } = new List<SoftwareVersion>();
+    public virtual ICollection<SoftwareVersion> InversePreviousVersionNavigation { get; set; } = new List<SoftwareVersion>();
 
     public virtual SoftwareVersion? PreviousVersionNavigation { get; set; }
 
-    public virtual ICollection<Tcu> Tcus { get; } = new List<Tcu>();
+    public virtual ICollection<Tcu> Tcus { get; set; } = new List<Tcu>();
 }

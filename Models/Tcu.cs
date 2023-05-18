@@ -13,23 +13,23 @@ public partial class Tcu
 
     public long CurrentVersionId { get; set; }
 
-    public string? UserId { get; set; }
+    public string UserId { get; set; } = null!;
 
     public string Mac { get; set; } = null!;
 
-    public bool IsValidated { get; set; }
+    public DateTime? ExpiresAt { get; set; }
 
     public byte[]? Challenge { get; set; }
 
-    public virtual ICollection<Alert> Alerts { get; } = new List<Alert>();
+    public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 
-    public virtual ICollection<ConnectionRequest> ConnectionRequests { get; } = new List<ConnectionRequest>();
+    public virtual ICollection<ConnectionRequest> ConnectionRequests { get; set; } = new List<ConnectionRequest>();
 
     public virtual SoftwareVersion CurrentVersion { get; set; } = null!;
 
-    public virtual ICollection<DevicesTcu> DevicesTcus { get; } = new List<DevicesTcu>();
+    public virtual ICollection<DevicesTcu> DevicesTcus { get; set; } = new List<DevicesTcu>();
 
-    public virtual ICollection<LockRequest> LockRequests { get; } = new List<LockRequest>();
+    public virtual ICollection<LockRequest> LockRequests { get; set; } = new List<LockRequest>();
 
-    public virtual AspNetUser? User { get; set; }
+    public virtual AspNetUser User { get; set; } = null!;
 }

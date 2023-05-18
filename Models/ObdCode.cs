@@ -11,5 +11,5 @@ public partial class ObdCode
 
     public bool? IsGeneric { get; set; }
 
-    public virtual ICollection<Alert> Alerts { get; } = new List<Alert>();
+    public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 }

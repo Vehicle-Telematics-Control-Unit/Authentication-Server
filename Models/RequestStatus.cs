@@ -9,7 +9,7 @@ public partial class RequestStatus
 
     public string Description { get; set; } = null!;
 
-    public virtual ICollection<ConnectionRequest> ConnectionRequests { get; } = new List<ConnectionRequest>();
+    public virtual ICollection<ConnectionRequest> ConnectionRequests { get; set; } = new List<ConnectionRequest>();
 
-    public virtual ICollection<LockRequest> LockRequests { get; } = new List<LockRequest>();
+    public virtual ICollection<LockRequest> LockRequests { get; set; } = new List<LockRequest>();
 }

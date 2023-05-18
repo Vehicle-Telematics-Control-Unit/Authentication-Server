@@ -55,7 +55,7 @@ public partial class TcuContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseNpgsql("UserID=postgres;Password=nada@123;Server=localhost;Port=5432;Database=TCU; Integrated Security=true;Pooling=true;");
+        => optionsBuilder.UseNpgsql("UserID=postgres;Password=postgres;Server=localhost;Port=5432;Database=TCU; Integrated Security=true;Pooling=true;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -309,10 +309,9 @@ public partial class TcuContext : DbContext
             entity.ToTable("TCU");
 
             entity.Property(e => e.TcuId).ValueGeneratedNever();
+            entity.Property(e => e.ExpiresAt).HasColumnType("timestamp without time zone");
             entity.Property(e => e.IpAddress).HasMaxLength(15);
-            entity.Property(e => e.Mac)
-                .HasMaxLength(17)
-                .HasColumnName("MAC");
+            entity.Property(e => e.Mac).HasMaxLength(17);
             entity.Property(e => e.Vin)
                 .HasMaxLength(17)
                 .HasColumnName("VIN");
@@ -324,8 +323,10 @@ public partial class TcuContext : DbContext
 
             entity.HasOne(d => d.User).WithMany(p => p.Tcus)
                 .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("TCU_AspNetUsers");
         });
+        modelBuilder.HasSequence("otptokens_id_seq");
 
         OnModelCreatingPartial(modelBuilder);
     }
