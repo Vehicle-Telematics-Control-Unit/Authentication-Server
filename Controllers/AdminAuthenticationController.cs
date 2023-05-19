@@ -17,7 +17,7 @@ namespace AuthenticationServer.Controllers
             this.userManager = userManager;
             this.tcuContext = tcuContext;
             _config = config;
-        }   
+        } 
 
         [HttpPost]
         [Route("register")]

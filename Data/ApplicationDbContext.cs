@@ -12,7 +12,7 @@ namespace AuthenticationServer.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql(@"Server=localhost;Port=5432;Database=TCU;User Id=postgres;Password=postgres;");
+            optionsBuilder.UseNpgsql(@"Server=209.97.131.105;Port=5432;Database=TCU;User Id=postgres;Password=postgres;");
         }
     }
 }
