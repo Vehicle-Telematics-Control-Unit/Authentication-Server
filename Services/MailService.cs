@@ -28,23 +28,26 @@ namespace AuthenticationServer.Services
                 client.Authenticate(_emailConfiguration.UserName, _emailConfiguration.Password);
                 client.Send(mailMessage);
 
-            }catch  {
+            }
+            catch
+            {
                 throw;
 
-            }finally { client.Disconnect(true); client.Dispose(); }
+            }
+            finally { client.Disconnect(true); client.Dispose(); }
         }
 
         private async Task<MimeMessage> CreateEmailMessage(MailData mailMessage)
         {
-            MimeMessage emailMessage = new MimeMessage();
+            MimeMessage emailMessage = new();
             emailMessage.From.Add(new MailboxAddress("VehiclePlus", _emailConfiguration.From));
             emailMessage.To.AddRange(mailMessage.To);
             emailMessage.Subject = mailMessage.Subject;
             emailMessage.Body = new TextPart(MimeKit.Text.TextFormat.Text) { Text = mailMessage.Content };
-            return emailMessage;    
+            return emailMessage;
 
         }
 
-       
+
     }
 }

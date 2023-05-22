@@ -1,206 +1,142 @@
-﻿using AuthenticationServer.Models;
+﻿using AuthenticationServer.Data;
+using AuthenticationServer.Models;
 using AuthenticationServer.Models.Commands;
 using AuthenticationServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
+using Org.BouncyCastle.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 
 namespace AuthenticationServer.Controllers
 {
-    [Route("api/Mobile")]
+    [Route("authentication/Mobile")]
     [ApiController]
-    public class MobileDeviceAuthenticationController : ControllerBase
+    public class MobileDeviceAuthenticationController : BaseController
     {
-        private readonly UserManager<IdentityUser> userManager;
-        private readonly TcuContext tcuContext;
-        private readonly IConfiguration _config;
-        private readonly IMailService _mailService;
 
-        public MobileDeviceAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config, IMailService mailService) //RoleManager<IdentityRole> roleManager, IConfiguration config)
+        private const int MIN_OTP_LENGTH = 1000;
+        private const int MAX_OTP_LENGTH = 10000;
+        protected readonly IMailService _mailService;
+        public MobileDeviceAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config, IMailService mailService): base(tcuContext, userManager, config)
         {
-            this.userManager = userManager;
-            this.tcuContext = tcuContext;
-            _config = config;
             _mailService = mailService;
         }
-
-
 
         [HttpPost]
         [Route("login")]
         public async Task<IActionResult> Login([FromBody] UserCommand userCommand)
         {
-            var user = await userManager.FindByNameAsync(userCommand.Username);
-
-            user ??= await userManager.FindByEmailAsync(userCommand.Username);
+            var user = await FindUser(userCommand.Username);
 
             if (user == null)
-                return Unauthorized(new
-                {
-                    errorCode = -1,
+                return Unauthorized();
 
-                });
+            var isCrdentialsCorrect = await userManager.CheckPasswordAsync(user, userCommand.Password);
 
-            //if (user.EmailConfirmed == false)
-            //    return NotFound(new JObject
-            //        {
-            //            new JProperty("error", -6)
-            //        });
+            if (isCrdentialsCorrect == false)
+                return Unauthorized();
 
-            if (await userManager.CheckPasswordAsync(user, userCommand.Password))
+            var device = (from _device in tcuContext.Devices
+                          where _device.DeviceId == userCommand.DeviceId
+                          select _device).FirstOrDefault();
+            
+            if (device == null)
+                return Unauthorized();
+
+            if (device.UserId != user.Id)
+                return Unauthorized();
+
+            var verifyMail = user.TwoFactorEnabled || user.EmailConfirmed == false;
+            
+            if (verifyMail)
             {
+                SecureRandom secureRandom = new();
+                var twoFactorAuthToken = secureRandom.Next(MIN_OTP_LENGTH, MAX_OTP_LENGTH);
 
-                var device = (from _device in tcuContext.Devices where _device.DeviceId == userCommand.DeviceId select _device).FirstOrDefault();
+                MailData mailMessage = new(new string[] { user.Email }, "OTP Confirmation", twoFactorAuthToken.ToString());
 
-                if (device == null)
-                    return Unauthorized(new
-                    {
-                        errorCode = -2,
-                    });
-                if (device.UserId != user.Id)
-                    return Unauthorized(new
-                    {
-                        errorCode = -3,
-                    });
-                if (user.TwoFactorEnabled)
+                try
                 {
-                    //var twoFactorAuthToken = await userManager.GenerateTwoFactorTokenAsync(user,"Email");
-                    var twoFactorAuthToken = GenerateRandomNum();
-                    if (twoFactorAuthToken != null)
-                    {
-                        MailData mailMessage = new MailData(new string[] { user.Email }, "OTP Confirmation", twoFactorAuthToken.ToString());
-                        try
-                        {
-                            await _mailService.SendEmail(mailMessage);
-                            Otptoken otptoken = new() { Token = twoFactorAuthToken, Userid = user.Id, Verifiedat = DateTime.Now }; 
-     
-                            tcuContext.Otptokens.Add(otptoken);
-                            tcuContext.SaveChanges();
-                            return Ok("otp code sent");
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine(ex.ToString());       
-                        }
-                        
-                    
-                    }
+                    await _mailService.SendEmail(mailMessage);
                 }
-                device.LastLoginTime = DateTime.UtcNow;
-#pragma warning disable CS8602 // Possible null reference argument.
-                device.IpAddress = Request.HttpContext.Connection.RemoteIpAddress.ToString();
-
-
-#pragma warning restore CS8602 // Possible null reference argument.
-
-                await tcuContext.SaveChangesAsync();
-
-                var authClaims = new List<Claim>
+                catch
                 {
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                };
-
-                var userRoles = await userManager.GetRolesAsync(user);
-
-                foreach (var userRole in userRoles)
-                {
-                    authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+                    return StatusCode(StatusCodes.Status500InternalServerError, "Failed to send Email");
                 }
 
-                authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
-                var token = GenerateJwtToken(authClaims);
-
-
-
-                return Ok(new
+                tcuContext.Otptokens.Add(new()
                 {
-                    token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo,
-                    username = user.UserName,
-                    email = user.Email,
+                    Token = twoFactorAuthToken,
+                    Userid = user.Id,
+                    Verifiedat = DateTime.Now
                 });
+
+                tcuContext.SaveChanges();
+                
+                return Ok("OTP code sent");
             }
-            return Unauthorized(new
+
+            device.LastLoginTime = DateTime.UtcNow;
+            
+            var ipAddress = Request.HttpContext.Connection.RemoteIpAddress;
+
+            if (ipAddress != null)
+                device.IpAddress = ipAddress.ToString();
+
+            await tcuContext.SaveChangesAsync();
+
+            var authClaims = await GetUserClaims(user);
+
+            authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
+            
+            var token = GenerateJwtToken(authClaims);
+
+            return Ok(new
             {
-                errorCode = -2
+                token = new JwtSecurityTokenHandler().WriteToken(token),
+                expiration = token.ValidTo,
+                username = user.UserName,
+                email = user.Email,
             });
-            /*return Unauthorized(new JObject
-                    {
-                        new JProperty("error", -5)
-                    });*/
-        }
-
-        private JwtSecurityToken GenerateJwtToken(List<Claim> authClaims)
-        {
-            #pragma warning disable CS8604 // Possible null reference argument.
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]));
-            #pragma warning restore CS8604 // Possible null reference argument.
-            var token = new JwtSecurityToken(
-                issuer: _config["JWT:ValidIssuer"],
-                audience: _config["JWT:ValidAudience"],
-                expires: DateTime.Now.AddHours(3),
-                claims: authClaims,
-                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-                );
-            return token;
-        }
-
-
-        private int GenerateRandomNum()
-        {
-            int min = 1000;
-            int max = 9999;
-            Random random = new Random();
-            return random.Next(min, max);
         }
 
         [HttpPost("verifymail")]
         public async Task<IActionResult> VerifyMail([FromBody] VerifyUserCommand verifyUserCommand)
         {
-            
+            DateTime currentTime = DateTime.Now;
             var user = await userManager.FindByEmailAsync(verifyUserCommand.UserEmail);
-            var device = (from _device in tcuContext.Devices where _device.DeviceId == verifyUserCommand.DeviceId select _device).FirstOrDefault();
+            var device = (from _device in tcuContext.Devices 
+                          where _device.DeviceId == verifyUserCommand.DeviceId 
+                          select _device).FirstOrDefault();
 
-            if (user == null)
-            {
-                return BadRequest("user not found");
-            }
-            
-            if (device == null)
-            {
-                return BadRequest("device not found");
-            }
+            if (user == null || device == null || verifyUserCommand.Token == null)
+                return Forbid();
 
-            var OTP = (from _OTP in tcuContext.Otptokens where _OTP.Token == int.Parse(verifyUserCommand.Token) && _OTP.Userid == verifyUserCommand.Token select _OTP).FirstOrDefault();
-            if(OTP != null) {
-                DateTime currentTime = DateTime.Now;
-                TimeSpan difference = currentTime.Subtract((DateTime)OTP.Verifiedat);
-                if (difference.TotalSeconds <= 45 && difference.Days == 0 && difference.Hours ==0 && difference.Minutes ==0)
+            var OTP = (from _OTP in tcuContext.Otptokens 
+                       where _OTP.Token == int.Parse(verifyUserCommand.Token) 
+                       && _OTP.Userid == verifyUserCommand.Token 
+                       select _OTP).FirstOrDefault();
+
+            if (OTP != null)
+            {
+                
+                if (OTP.Verifiedat == null)
+                    return Forbid();
+
+                var expiryDate = (DateTime)OTP.Verifiedat;
+
+
+                if (currentTime > expiryDate.AddSeconds(45))
                 {
-                    var authClaims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, user.UserName),
-                        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                    };
-                    
-
-                    var userRoles = await userManager.GetRolesAsync(user);
-
-                    foreach (var userRole in userRoles)
-                    {
-                        authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-                    }
+                    var authClaims = await GetUserClaims(user);
 
                     authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
-                   
-
+                    
                     var _token = GenerateJwtToken(authClaims);
-                    user.TwoFactorEnabled = false;
+                    
                     user.EmailConfirmed = true;
+                    
                     return Ok(new
                     {
                         _token = new JwtSecurityTokenHandler().WriteToken(_token),
@@ -209,17 +145,10 @@ namespace AuthenticationServer.Controllers
                         email = user.Email,
                     });
                 }
-               
             }
+
             return BadRequest("Invalid Token");
-  
-
         }
-
     }
-    
-
-
-
 }
 
