@@ -1,6 +1,6 @@
 ﻿using MimeKit;
 
-namespace AuthenticationServer.Models
+namespace AuthenticationServer.Data
 {
     public class MailData
     {

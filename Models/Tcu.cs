@@ -1,14 +1,13 @@
-﻿namespace AuthenticationServer.Models;
+﻿using System;
+using System.Collections.Generic;
+
+namespace AuthenticationServer.Models;
 
 public partial class Tcu
 {
     public string? IpAddress { get; set; }
 
-    public string Vin { get; set; } = null!;
-
     public long TcuId { get; set; }
-
-    public long CurrentVersionId { get; set; }
 
     public string UserId { get; set; } = null!;
 
@@ -21,8 +20,6 @@ public partial class Tcu
     public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 
     public virtual ICollection<ConnectionRequest> ConnectionRequests { get; set; } = new List<ConnectionRequest>();
-
-    public virtual SoftwareVersion CurrentVersion { get; set; } = null!;
 
     public virtual ICollection<DevicesTcu> DevicesTcus { get; set; } = new List<DevicesTcu>();
 

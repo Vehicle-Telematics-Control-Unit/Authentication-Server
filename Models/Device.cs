@@ -1,4 +1,7 @@
-﻿namespace AuthenticationServer.Models;
+﻿using System;
+using System.Collections.Generic;
+
+namespace AuthenticationServer.Models;
 
 public partial class Device
 {
@@ -9,6 +12,8 @@ public partial class Device
     public DateTime? LastLoginTime { get; set; }
 
     public string? IpAddress { get; set; }
+
+    public string? NotificationToken { get; set; }
 
     public virtual ICollection<ConnectionRequest> ConnectionRequests { get; set; } = new List<ConnectionRequest>();
 

@@ -1,5 +1,5 @@
 ﻿using AuthenticationServer.Configurations;
-using AuthenticationServer.Models;
+using AuthenticationServer.Data;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Options;
 using MimeKit;
@@ -13,31 +13,27 @@ namespace AuthenticationServer.Services
 
         public async Task SendEmail(MailData mailMessage)
         {
-            MimeMessage emailMessage = await CreateEmailMessage(mailMessage);
+            MimeMessage emailMessage = CreateEmailMessage(mailMessage);
             await Send(emailMessage);
-
         }
 
         private async Task Send(MimeMessage mailMessage)
         {
             using var client = new SmtpClient();
-            try
+            await Task.Run(() =>
             {
                 client.Connect(_emailConfiguration.SmtpServer, _emailConfiguration.Port, true);
                 client.AuthenticationMechanisms.Remove("XOAUTH2");
                 client.Authenticate(_emailConfiguration.UserName, _emailConfiguration.Password);
                 client.Send(mailMessage);
-
-            }
-            catch
+            }).ContinueWith(previousTask =>
             {
-                throw;
-
-            }
-            finally { client.Disconnect(true); client.Dispose(); }
+                client.Disconnect(true); 
+                client.Dispose();
+            });
         }
 
-        private async Task<MimeMessage> CreateEmailMessage(MailData mailMessage)
+        private MimeMessage CreateEmailMessage(MailData mailMessage)
         {
             MimeMessage emailMessage = new();
             emailMessage.From.Add(new MailboxAddress("VehiclePlus", _emailConfiguration.From));
@@ -45,9 +41,6 @@ namespace AuthenticationServer.Services
             emailMessage.Subject = mailMessage.Subject;
             emailMessage.Body = new TextPart(MimeKit.Text.TextFormat.Text) { Text = mailMessage.Content };
             return emailMessage;
-
         }
-
-
     }
 }

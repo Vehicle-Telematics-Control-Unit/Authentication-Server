@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
 
 namespace AuthenticationServer.Models;
 
@@ -47,13 +49,10 @@ public partial class TcuContext : DbContext
 
     public virtual DbSet<RequestStatus> RequestStatuses { get; set; }
 
-    public virtual DbSet<SoftwareVersion> SoftwareVersions { get; set; }
-
     public virtual DbSet<Tcu> Tcus { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseNpgsql("UserID=postgres;Password=postgres;Server=209.97.131.105;Port=5432;Database=TCU; Integrated Security=true;Pooling=true;");
+        => optionsBuilder.UseNpgsql("Name=ConnectionStrings:TcuServerConnection");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -175,7 +174,7 @@ public partial class TcuContext : DbContext
 
             entity.Property(e => e.DeviceId).HasMaxLength(150);
             entity.Property(e => e.IpAddress).HasMaxLength(15);
-            entity.Property(e => e.LastLoginTime).HasDefaultValueSql("now()");
+            entity.Property(e => e.LastLoginTime).HasDefaultValueSql("'2023-05-23 19:50:17.208823+00'::timestamp with time zone");
             entity.Property(e => e.UserId).HasColumnName("UserID");
 
             entity.HasOne(d => d.User).WithMany(p => p.Devices)
@@ -286,38 +285,15 @@ public partial class TcuContext : DbContext
             entity.Property(e => e.StatusId).ValueGeneratedNever();
         });
 
-        modelBuilder.Entity<SoftwareVersion>(entity =>
-        {
-            entity.HasKey(e => e.VersionId).HasName("SoftwareVersion_pkey");
-
-            entity.ToTable("SoftwareVersion");
-
-            entity.Property(e => e.VersionId).ValueGeneratedNever();
-            entity.Property(e => e.Rxwin).HasColumnName("RXWIN");
-
-            entity.HasOne(d => d.PreviousVersionNavigation).WithMany(p => p.InversePreviousVersionNavigation)
-                .HasForeignKey(d => d.PreviousVersion)
-                .HasConstraintName("SoftwareVersion_Unirary");
-        });
-
         modelBuilder.Entity<Tcu>(entity =>
         {
             entity.HasKey(e => e.TcuId).HasName("TCU_pkey");
 
             entity.ToTable("TCU");
 
-            entity.Property(e => e.TcuId).ValueGeneratedNever();
             entity.Property(e => e.ExpiresAt).HasColumnType("timestamp without time zone");
             entity.Property(e => e.IpAddress).HasMaxLength(15);
             entity.Property(e => e.Mac).HasMaxLength(17);
-            entity.Property(e => e.Vin)
-                .HasMaxLength(17)
-                .HasColumnName("VIN");
-
-            entity.HasOne(d => d.CurrentVersion).WithMany(p => p.Tcus)
-                .HasForeignKey(d => d.CurrentVersionId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("TCU_SoftwareVersion");
 
             entity.HasOne(d => d.User).WithMany(p => p.Tcus)
                 .HasForeignKey(d => d.UserId)

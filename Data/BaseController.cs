@@ -1,16 +1,10 @@
 ﻿using AuthenticationServer.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using AuthenticationServer.Services;
-
-using Org.BouncyCastle.Security;
-using Org.BouncyCastle.Crypto.Digests;
-using Org.BouncyCastle.Crypto.Prng;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using AuthenticationServer.Models.Commands;
 
 namespace AuthenticationServer.Data
 {
@@ -20,7 +14,6 @@ namespace AuthenticationServer.Data
         protected readonly TcuContext tcuContext;
         protected readonly IConfiguration _config;
         
-
         public BaseController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config)
         {
             this.userManager = userManager;
@@ -32,10 +25,8 @@ namespace AuthenticationServer.Data
         {
             if (_config["JWT:Secret"] == null)
                 throw new MissingFieldException("Failed to load JWT secret key");
-
             string? secretKey = _config["JWT:Secret"] ?? throw new MissingFieldException("Failed to load JWT secret key");
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-
             var token = new JwtSecurityToken(
                 issuer: _config["JWT:ValidIssuer"],
                 audience: _config["JWT:ValidAudience"],
@@ -50,9 +41,7 @@ namespace AuthenticationServer.Data
         protected async Task<IdentityUser> FindUser(string? userIdentifier)
         {
             var user = await userManager.FindByNameAsync(userIdentifier);
-
             user ??= await userManager.FindByEmailAsync(userIdentifier);
-
             return user;
         }
 
@@ -72,6 +61,14 @@ namespace AuthenticationServer.Data
             }
 
             return claims;
+        }
+
+        protected async static Task<byte[]> ParseIformFile(IFormFile file)
+        {
+            using var reader = file.OpenReadStream();
+            byte[] bytes = new byte[file.Length];
+            await reader.ReadAsync(bytes.AsMemory(0, (int)file.Length));
+            return bytes;
         }
     }
 }

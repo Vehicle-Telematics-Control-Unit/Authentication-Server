@@ -1,4 +1,4 @@
-﻿namespace AuthenticationServer.Models.Commands
+﻿namespace AuthenticationServer.Data.Commands
 {
     public class VerifyUserCommand
     {

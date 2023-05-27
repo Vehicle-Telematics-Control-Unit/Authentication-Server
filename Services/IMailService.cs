@@ -1,4 +1,4 @@
-﻿using AuthenticationServer.Models;
+﻿using AuthenticationServer.Data;
 
 namespace AuthenticationServer.Services
 {
