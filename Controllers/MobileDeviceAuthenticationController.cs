@@ -4,6 +4,7 @@ using AuthenticationServer.Models;
 using AuthenticationServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
 using Org.BouncyCastle.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -22,6 +23,8 @@ namespace AuthenticationServer.Controllers
         {
             _mailService = mailService;
         }
+
+    
 
         [HttpPost]
         [Route("login")]
@@ -54,8 +57,14 @@ namespace AuthenticationServer.Controllers
                     Verifiedat = DateTime.Now
                 });
                 tcuContext.SaveChanges();
-                return Ok("OTP code sent");
+                return Ok(new
+                {
+                    message = "otp code sent",
+                    email = user.Email,
+
+                });
             }
+            device.NotificationToken = userCommand.NotificationToken;
             device.LastLoginTime = DateTime.UtcNow;
             var ipAddress = resolveIPAddress(Request.HttpContext);
             if (ipAddress != null)
@@ -85,22 +94,23 @@ namespace AuthenticationServer.Controllers
                 return Forbid();
             var OTP = (from _OTP in tcuContext.Otptokens 
                        where _OTP.Token == int.Parse(verifyUserCommand.Token) 
-                       && _OTP.Userid == verifyUserCommand.Token 
+                       && _OTP.Userid == user.Id
                        select _OTP).FirstOrDefault();
             if (OTP == null)
                 return Forbid();
             if (OTP.Verifiedat == null)
                 return Forbid();
             var expiryDate = (DateTime)OTP.Verifiedat;
-            if (currentTime > expiryDate.AddSeconds(45))
+            if (currentTime >= expiryDate.AddSeconds(45))
                 return StatusCode(StatusCodes.Status419AuthenticationTimeout, "OTP expired");
+            device.NotificationToken = verifyUserCommand.NotificationToken;
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
             var _token = GenerateJwtToken(authClaims);
             user.EmailConfirmed = true;
             return Ok(new
             {
-                _token = new JwtSecurityTokenHandler().WriteToken(_token),
+                token = new JwtSecurityTokenHandler().WriteToken(_token),
                 expiration = _token.ValidTo,
                 username = user.UserName,
                 email = user.Email
