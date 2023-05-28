@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace AuthenticationServer.Data
 {
-    public class ApplicatioinContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>
+    public class ApplicationContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>
     {
         public ApplicationDbContext CreateDbContext(string[] args)
         {

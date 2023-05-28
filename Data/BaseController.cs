@@ -70,5 +70,21 @@ namespace AuthenticationServer.Data
             await reader.ReadAsync(bytes.AsMemory(0, (int)file.Length));
             return bytes;
         }
+
+        protected static string? resolveIPAddress(HttpContext httpContext)
+        {
+            string? ipAddress = null;
+            if (httpContext.Request.Headers.ContainsKey("X-Forwarded-For"))
+            {
+                ipAddress = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            }
+            else
+            {
+                var ipObj = httpContext.Connection.RemoteIpAddress;
+                if (ipObj != null)
+                    ipAddress = ipObj.ToString();
+            }
+            return ipAddress;
+        }
     }
 }

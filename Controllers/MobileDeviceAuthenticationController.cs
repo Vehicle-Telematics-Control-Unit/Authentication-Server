@@ -66,9 +66,9 @@ namespace AuthenticationServer.Controllers
             }
             device.NotificationToken = userCommand.NotificationToken;
             device.LastLoginTime = DateTime.UtcNow;
-            var ipAddress = Request.HttpContext.Connection.RemoteIpAddress;
+            var ipAddress = resolveIPAddress(Request.HttpContext);
             if (ipAddress != null)
-                device.IpAddress = ipAddress.ToString();
+                device.IpAddress = ipAddress;
             await tcuContext.SaveChangesAsync();
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
