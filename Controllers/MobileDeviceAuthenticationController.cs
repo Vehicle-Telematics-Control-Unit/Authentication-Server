@@ -57,9 +57,9 @@ namespace AuthenticationServer.Controllers
                 return Ok("OTP code sent");
             }
             device.LastLoginTime = DateTime.UtcNow;
-            var ipAddress = Request.HttpContext.Connection.RemoteIpAddress;
+            var ipAddress = resolveIPAddress(Request.HttpContext);
             if (ipAddress != null)
-                device.IpAddress = ipAddress.ToString();
+                device.IpAddress = ipAddress;
             await tcuContext.SaveChangesAsync();
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
@@ -92,7 +92,7 @@ namespace AuthenticationServer.Controllers
             if (OTP.Verifiedat == null)
                 return Forbid();
             var expiryDate = (DateTime)OTP.Verifiedat;
-            if (currentTime <= expiryDate.AddSeconds(45))
+            if (currentTime > expiryDate.AddSeconds(45))
                 return StatusCode(StatusCodes.Status419AuthenticationTimeout, "OTP expired");
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
