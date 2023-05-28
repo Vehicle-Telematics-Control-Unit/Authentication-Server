@@ -292,7 +292,7 @@ public partial class TcuContext : DbContext
             entity.ToTable("TCU");
 
             entity.Property(e => e.ExpiresAt).HasColumnType("timestamp without time zone");
-            entity.Property(e => e.IpAddress).HasMaxLength(15);
+            entity.Property(e => e.IpAddress).HasColumnType("character varying");
             entity.Property(e => e.Mac).HasMaxLength(17);
 
             entity.HasOne(d => d.User).WithMany(p => p.Tcus)
