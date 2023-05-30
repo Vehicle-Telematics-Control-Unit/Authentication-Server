@@ -100,6 +100,7 @@ namespace AuthenticationServer.Controllers
             if (currentTime >= expiryDate.AddSeconds(45))
                 return StatusCode(StatusCodes.Status419AuthenticationTimeout, "OTP expired");
             device.NotificationToken = verifyUserCommand.NotificationToken;
+            tcuContext.SaveChanges();
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
             authClaims.Add(new Claim("HasPrimaryDevice", "yes"));
