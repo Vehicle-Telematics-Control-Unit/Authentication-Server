@@ -94,7 +94,7 @@ namespace AuthenticationServer.Controllers
             if (secret != tcuChallenge)
                 return Forbid();
             var user = await userManager.FindByIdAsync(tcu.UserId);
-            var ipAAddress = resolveIPAddress(Request.HttpContext);
+            var ipAAddress = ResolveIPAddress(Request.HttpContext);
             if (ipAAddress != null)
                 tcu.IpAddress = ipAAddress;
             await tcuContext.SaveChangesAsync();

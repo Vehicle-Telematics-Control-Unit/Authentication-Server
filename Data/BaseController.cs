@@ -13,7 +13,8 @@ namespace AuthenticationServer.Data
         protected readonly UserManager<IdentityUser> userManager;
         protected readonly TcuContext tcuContext;
         protected readonly IConfiguration _config;
-        
+        protected const int MIN_OTP_LENGTH = 1000;
+        protected const int MAX_OTP_LENGTH = 10000;
         public BaseController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config)
         {
             this.userManager = userManager;
@@ -50,7 +51,8 @@ namespace AuthenticationServer.Data
             var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
                 };
 
             var userRoles = await userManager.GetRolesAsync(user);
@@ -71,7 +73,7 @@ namespace AuthenticationServer.Data
             return bytes;
         }
 
-        protected static string? resolveIPAddress(HttpContext httpContext)
+        protected static string? ResolveIPAddress(HttpContext httpContext)
         {
             string? ipAddress = null;
             if (httpContext.Request.Headers.ContainsKey("X-Forwarded-For"))

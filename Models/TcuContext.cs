@@ -136,7 +136,10 @@ public partial class TcuContext : DbContext
             entity.HasKey(e => new { e.TcuId, e.DeviceId, e.CreationTimeStamp }).HasName("ConnectionRequests_pkey");
 
             entity.Property(e => e.DeviceId).HasMaxLength(150);
-            entity.Property(e => e.CreationTimeStamp).HasDefaultValueSql("now()");
+            entity.Property(e => e.CreationTimeStamp)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.VerificationTimeStamp).HasColumnType("timestamp without time zone");
 
             entity.HasOne(d => d.Device).WithMany(p => p.ConnectionRequests)
                 .HasForeignKey(d => d.DeviceId)

@@ -4,7 +4,6 @@ using AuthenticationServer.Models;
 using AuthenticationServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
 using Org.BouncyCastle.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -15,9 +14,6 @@ namespace AuthenticationServer.Controllers
     [ApiController]
     public class MobileDeviceAuthenticationController : BaseController
     {
-
-        private const int MIN_OTP_LENGTH = 1000;
-        private const int MAX_OTP_LENGTH = 10000;
         protected readonly IMailService _mailService;
         public MobileDeviceAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config, IMailService mailService): base(tcuContext, userManager, config)
         {
@@ -43,7 +39,7 @@ namespace AuthenticationServer.Controllers
                 return Unauthorized();
             if (device.UserId != user.Id)
                 return Unauthorized();
-            var verifyMail = user.TwoFactorEnabled || user.EmailConfirmed == false;
+            var verifyMail = user.TwoFactorEnabled || (user.EmailConfirmed == false);
             if (verifyMail)
             {
                 SecureRandom secureRandom = new();
@@ -66,7 +62,7 @@ namespace AuthenticationServer.Controllers
             }
             device.NotificationToken = userCommand.NotificationToken;
             device.LastLoginTime = DateTime.UtcNow;
-            var ipAddress = resolveIPAddress(Request.HttpContext);
+            var ipAddress = ResolveIPAddress(Request.HttpContext);
             if (ipAddress != null)
                 device.IpAddress = ipAddress;
             await tcuContext.SaveChangesAsync();
@@ -106,6 +102,7 @@ namespace AuthenticationServer.Controllers
             device.NotificationToken = verifyUserCommand.NotificationToken;
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
+            authClaims.Add(new Claim("HasPrimaryDevice", "yes"));
             var _token = GenerateJwtToken(authClaims);
             user.EmailConfirmed = true;
             return Ok(new
