@@ -80,7 +80,7 @@ namespace AuthenticationServer.Controllers
         }
 
         [HttpPost]
-        [Route("request")]
+        [Route("submit")]
         [AllowAnonymous]
         public async Task<IActionResult> SubmitRequestAccess([FromBody] VehicleAccessRequestCommand command)
         {
