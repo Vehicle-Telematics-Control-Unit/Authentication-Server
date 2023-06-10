@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace AuthenticationServer.Controllers
 {
@@ -32,13 +33,17 @@ namespace AuthenticationServer.Controllers
             var isCrdentialsCorrect = await userManager.CheckPasswordAsync(user, userCommand.Password);
             if (isCrdentialsCorrect == false)
                 return Unauthorized();
-            var device = (from _device in tcuContext.Devices
-                          where _device.DeviceId == userCommand.DeviceId
-                          select _device).FirstOrDefault();
-            if (device == null)
-                return Unauthorized();
-            if (device.UserId != user.Id)
-                return Unauthorized();
+            string? ipAdress = ResolveIPAddress(Request.HttpContext);
+            var device = new Device
+            {
+                DeviceId= Guid.NewGuid().ToString(),
+                UserId =  user.Id,
+                IpAddress = ipAdress
+
+            };
+            tcuContext.Devices.Add(device);
+            tcuContext.SaveChanges();
+
             var verifyMail = user.TwoFactorEnabled || (user.EmailConfirmed == false);
             if (verifyMail)
             {
@@ -57,6 +62,8 @@ namespace AuthenticationServer.Controllers
                 {
                     message = "otp code sent",
                     email = user.Email,
+                    deviceId = device.DeviceId
+
 
                 });
             }
@@ -75,6 +82,7 @@ namespace AuthenticationServer.Controllers
                 expiration = token.ValidTo,
                 username = user.UserName,
                 email = user.Email,
+                deviceId = device.DeviceId
             });
         }
 
