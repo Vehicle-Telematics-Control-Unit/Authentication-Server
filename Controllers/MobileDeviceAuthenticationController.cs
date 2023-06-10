@@ -34,27 +34,25 @@ namespace AuthenticationServer.Controllers
                 return Unauthorized();
             string? ipAdress = ResolveIPAddress(Request.HttpContext);
 
-            Device? device;
             if (userCommand.deviceId == null)
+                return BadRequest();
+
+            Device? device;
+            device = (from _device in tcuContext.Devices
+                      where _device.DeviceId == userCommand.deviceId
+                      select _device).FirstOrDefault();
+            if (device == null)
             {
                 device = new Device
                 {
-                    DeviceId = Guid.NewGuid().ToString(),
+                    DeviceId = userCommand.deviceId,
                     UserId = user.Id,
                     IpAddress = ipAdress
                 };
                 tcuContext.Devices.Add(device);
                 tcuContext.SaveChanges();
             }
-            else
-            {
-                device = (from _device in tcuContext.Devices
-                          where _device.DeviceId == userCommand.deviceId
-                          select _device).FirstOrDefault();
 
-                if (device == null)
-                    return BadRequest();
-            }
 
             var verifyMail = user.TwoFactorEnabled || (user.EmailConfirmed == false);
             if (verifyMail)

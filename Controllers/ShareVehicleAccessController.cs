@@ -114,13 +114,21 @@ namespace AuthenticationServer.Controllers
 
             string? ipAdress = ResolveIPAddress(Request.HttpContext);
 
+            if(command.deviceId==null)
+                return BadRequest();
+
             Device? device;
-            if (command.deviceId == null)
+            device = (from _device in tcuContext.Devices
+                      where _device.DeviceId == command.deviceId
+                      select _device).FirstOrDefault();
+
+            if (device == null)
             {
                 device = new Device
                 {
+                    DeviceId = command.deviceId,
                     UserId = userId,
-                    LastLoginTime = DateTime.Now,
+                    LastLoginTime = DateTime.Now.ToUniversalTime(),
                     IpAddress = ipAdress,
                     NotificationToken = command.NotificationToken,
                 };
@@ -128,15 +136,8 @@ namespace AuthenticationServer.Controllers
                 tcuContext.Devices.Add(device);
                 tcuContext.SaveChanges();
             }
-            else
-            {
-                device = (from _device in tcuContext.Devices
-                          where _device.DeviceId == command.deviceId
-                          select _device).FirstOrDefault();
 
-                if (device == null)
-                    return BadRequest();
-            }
+           
             var user = await userManager.FindByIdAsync(userId);
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId));
