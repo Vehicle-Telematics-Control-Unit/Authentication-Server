@@ -113,20 +113,33 @@ namespace AuthenticationServer.Controllers
             connectionRequest.StatusId = 2;
 
             string? ipAdress = ResolveIPAddress(Request.HttpContext);
-            
-            var newDevice = new Device
-            {
-                UserId = userId,
-                LastLoginTime = DateTime.Now,
-                IpAddress = ipAdress,
-                NotificationToken = command.NotificationToken,
-            };
 
-            tcuContext.Devices.Add(newDevice);
-            tcuContext.SaveChanges();
+            Device? device;
+            if (command.deviceId == null)
+            {
+                device = new Device
+                {
+                    UserId = userId,
+                    LastLoginTime = DateTime.Now,
+                    IpAddress = ipAdress,
+                    NotificationToken = command.NotificationToken,
+                };
+
+                tcuContext.Devices.Add(device);
+                tcuContext.SaveChanges();
+            }
+            else
+            {
+                device = (from _device in tcuContext.Devices
+                          where _device.DeviceId == command.deviceId
+                          select _device).FirstOrDefault();
+
+                if (device == null)
+                    return BadRequest();
+            }
             var user = await userManager.FindByIdAsync(userId);
             var authClaims = await GetUserClaims(user);
-            authClaims.Add(new Claim("deviceId", newDevice.DeviceId.ToString()));
+            authClaims.Add(new Claim("deviceId", device.DeviceId));
             var token = GenerateJwtToken(authClaims);
             return Ok(new
             {

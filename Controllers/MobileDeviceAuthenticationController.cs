@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace AuthenticationServer.Controllers
 {
@@ -34,19 +33,33 @@ namespace AuthenticationServer.Controllers
             if (isCrdentialsCorrect == false)
                 return Unauthorized();
             string? ipAdress = ResolveIPAddress(Request.HttpContext);
-            var device = new Device
-            {
-                DeviceId= Guid.NewGuid().ToString(),
-                UserId =  user.Id,
-                IpAddress = ipAdress
 
-            };
-            tcuContext.Devices.Add(device);
-            tcuContext.SaveChanges();
+            Device? device;
+            if (userCommand.deviceId == null)
+            {
+                device = new Device
+                {
+                    DeviceId = Guid.NewGuid().ToString(),
+                    UserId = user.Id,
+                    IpAddress = ipAdress
+                };
+                tcuContext.Devices.Add(device);
+                tcuContext.SaveChanges();
+            }
+            else
+            {
+                device = (from _device in tcuContext.Devices
+                          where _device.DeviceId == userCommand.deviceId
+                          select _device).FirstOrDefault();
+
+                if (device == null)
+                    return BadRequest();
+            }
 
             var verifyMail = user.TwoFactorEnabled || (user.EmailConfirmed == false);
             if (verifyMail)
             {
+
                 SecureRandom secureRandom = new();
                 var twoFactorAuthToken = secureRandom.Next(MIN_OTP_LENGTH, MAX_OTP_LENGTH);
                 MailData mailMessage = new(new string[] { user.Email }, "OTP Confirmation", twoFactorAuthToken.ToString());
@@ -61,17 +74,17 @@ namespace AuthenticationServer.Controllers
                 return Ok(new
                 {
                     message = "otp code sent",
-                    email = user.Email,
-                    deviceId = device.DeviceId
-
-
+                    email = user.Email
                 });
             }
+
             device.NotificationToken = userCommand.NotificationToken;
             device.LastLoginTime = DateTime.UtcNow;
+            
             var ipAddress = ResolveIPAddress(Request.HttpContext);
             if (ipAddress != null)
                 device.IpAddress = ipAddress;
+            
             await tcuContext.SaveChangesAsync();
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
@@ -81,8 +94,7 @@ namespace AuthenticationServer.Controllers
                 token = new JwtSecurityTokenHandler().WriteToken(token),
                 expiration = token.ValidTo,
                 username = user.UserName,
-                email = user.Email,
-                deviceId = device.DeviceId
+                email = user.Email
             });
         }
 
