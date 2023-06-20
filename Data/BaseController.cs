@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Org.BouncyCastle.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -88,5 +89,25 @@ namespace AuthenticationServer.Data
             }
             return ipAddress;
         }
+
+
+        protected static byte[] GenerateHashBytes()
+        {
+            var digestor = DigestUtilities.GetDigest("SHA256");
+            byte[] challenge = new byte[digestor.GetDigestSize()];
+            SecureRandom secureRandom = new();
+            secureRandom.NextBytes(challenge);
+            digestor.BlockUpdate(challenge, 0, challenge.Length);
+            digestor.DoFinal(challenge, 0);
+            return challenge;
+        }
+
+        protected static string GenerateRandomString()
+        {
+            byte[] randomBytes = GenerateHashBytes();
+            return Convert.ToBase64String(randomBytes);
+        }
+
+
     }
 }

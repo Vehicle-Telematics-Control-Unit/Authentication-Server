@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace AuthenticationServer.Models;
 
@@ -39,12 +37,6 @@ public partial class TcuContext : DbContext
 
     public virtual DbSet<LockRequest> LockRequests { get; set; }
 
-    public virtual DbSet<ObdCode> ObdCodes { get; set; }
-
-    public virtual DbSet<ObdFaultAreaCode> ObdFaultAreaCodes { get; set; }
-
-    public virtual DbSet<ObdSubSystemCode> ObdSubSystemCodes { get; set; }
-
     public virtual DbSet<Otptoken> Otptokens { get; set; }
 
     public virtual DbSet<RequestStatus> RequestStatuses { get; set; }
@@ -60,14 +52,7 @@ public partial class TcuContext : DbContext
         {
             entity.HasKey(e => new { e.LogTimeStamp, e.ObdCode, e.TcuId }).HasName("Alerts_pkey");
 
-            entity.Property(e => e.ObdCode)
-                .HasMaxLength(5)
-                .IsFixedLength();
-
-            entity.HasOne(d => d.ObdCodeNavigation).WithMany(p => p.Alerts)
-                .HasForeignKey(d => d.ObdCode)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("Alert_ObdCodes");
+            entity.Property(e => e.LogTimeStamp).HasColumnType("timestamp without time zone");
 
             entity.HasOne(d => d.Tcu).WithMany(p => p.Alerts)
                 .HasForeignKey(d => d.TcuId)
@@ -193,10 +178,7 @@ public partial class TcuContext : DbContext
             entity.ToTable("DevicesTcu");
 
             entity.Property(e => e.DeviceId).HasMaxLength(150);
-            entity.Property(e => e.IsActive)
-                .IsRequired()
-                .HasDefaultValueSql("true")
-                .HasColumnName("isActive");
+            entity.Property(e => e.IsActive).HasColumnName("isActive");
             entity.Property(e => e.IsPrimary).HasColumnName("isPrimary");
 
             entity.HasOne(d => d.Device).WithMany(p => p.DevicesTcus)
@@ -230,36 +212,6 @@ public partial class TcuContext : DbContext
                 .HasForeignKey(d => d.TcuId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("LockRequest_TCU");
-        });
-
-        modelBuilder.Entity<ObdCode>(entity =>
-        {
-            entity.HasKey(e => e.ObdCode1).HasName("ObdCodes_pkey");
-
-            entity.Property(e => e.ObdCode1)
-                .HasMaxLength(5)
-                .IsFixedLength()
-                .HasColumnName("ObdCode");
-            entity.Property(e => e.IsGeneric)
-                .IsRequired()
-                .HasDefaultValueSql("true")
-                .HasColumnName("isGeneric");
-        });
-
-        modelBuilder.Entity<ObdFaultAreaCode>(entity =>
-        {
-            entity.HasKey(e => new { e.AreaId, e.Description }).HasName("ObdFaultAreaCodes_pkey");
-
-            entity.Property(e => e.AreaId).HasMaxLength(1);
-        });
-
-        modelBuilder.Entity<ObdSubSystemCode>(entity =>
-        {
-            entity.HasKey(e => e.SubsystemId).HasName("ObdSubSystemCodes_pkey");
-
-            entity.Property(e => e.SubsystemId)
-                .HasMaxLength(1)
-                .ValueGeneratedNever();
         });
 
         modelBuilder.Entity<Otptoken>(entity =>

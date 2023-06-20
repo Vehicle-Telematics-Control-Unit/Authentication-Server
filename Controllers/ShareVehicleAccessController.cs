@@ -29,23 +29,23 @@ namespace AuthenticationServer.Controllers
                 return Unauthorized();
 
             string? deviceId = (from _claim in User.Claims
-                              where _claim.Type == "deviceId"
-                              select _claim.Value).FirstOrDefault();
-            
+                                where _claim.Type == "deviceId"
+                                select _claim.Value).FirstOrDefault();
+
             if (deviceId == null)
                 return Unauthorized();
 
             var device = (from _device in tcuContext.Devices
                           where _device.DeviceId == deviceId
                           select _device).FirstOrDefault();
-            
+
             if (device == null)
                 return Unauthorized();
 
             string? userId = (from _claim in User.Claims
-                                where _claim.Type == ClaimTypes.NameIdentifier
-                                select _claim.Value).FirstOrDefault();
-            
+                              where _claim.Type == ClaimTypes.NameIdentifier
+                              select _claim.Value).FirstOrDefault();
+
             if (userId == null)
                 return Unauthorized();
 
@@ -54,7 +54,7 @@ namespace AuthenticationServer.Controllers
             var tcu = (from _tcu in tcuContext.Tcus
                        where _tcu.UserId == user.Id
                        select _tcu).FirstOrDefault();
-            
+
             if (tcu == null)
                 return Forbid();
 
@@ -86,9 +86,9 @@ namespace AuthenticationServer.Controllers
         {
             var currentTime = DateTime.Now;
             ConnectionRequest? connectionRequest = (from _request in tcuContext.ConnectionRequests
-                                                   where _request.TcuId == command.TcuId
-                                                   && _request.Token == command.Token
-                                                   select _request).FirstOrDefault();
+                                                    where _request.TcuId == command.TcuId
+                                                    && _request.Token == command.Token
+                                                    select _request).FirstOrDefault();
             if (connectionRequest == null)
                 return Forbid();
             if (connectionRequest.StatusId != 0)
@@ -114,7 +114,7 @@ namespace AuthenticationServer.Controllers
 
             string? ipAdress = ResolveIPAddress(Request.HttpContext);
 
-            if(command.deviceId==null)
+            if (command.deviceId == null)
                 return BadRequest();
 
             Device? device;
@@ -137,7 +137,7 @@ namespace AuthenticationServer.Controllers
                 tcuContext.SaveChanges();
             }
 
-           
+
             var user = await userManager.FindByIdAsync(userId);
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId));

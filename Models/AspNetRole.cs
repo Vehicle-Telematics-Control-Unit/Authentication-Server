@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace AuthenticationServer.Models;
+﻿namespace AuthenticationServer.Models;
 
 public partial class AspNetRole
 {

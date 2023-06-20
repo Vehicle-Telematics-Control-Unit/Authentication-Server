@@ -27,11 +27,11 @@ namespace AuthenticationServer.Controllers
         private readonly ISignatureFactory _signatureFactory;
         private readonly X509Certificate _serverCertificate;
 
-        public TCUAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config): base(tcuContext, userManager, config)
+        public TCUAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config) : base(tcuContext, userManager, config)
         {
             var certificatePath = config.GetSection("LicencesPaths:serverLicense").Value ?? throw new FileNotFoundException();
             var publicKeyPath = config.GetSection("LicencesPaths:publicKey").Value ?? throw new FileNotFoundException();
-            var privateKeyPath = config.GetSection("LicencesPaths:privateKey").Value?? throw new FileNotFoundException();
+            var privateKeyPath = config.GetSection("LicencesPaths:privateKey").Value ?? throw new FileNotFoundException();
             using (FileStream pemFileStream = new(publicKeyPath, FileMode.Open))
             {
                 var pemReader = new PemReader(new StreamReader(pemFileStream));
@@ -43,7 +43,7 @@ namespace AuthenticationServer.Controllers
                 var privateKeyParamters = (RsaPrivateCrtKeyParameters)pemReader.ReadObject();
                 _signatureFactory = new Asn1SignatureFactory("SHA256WithRSA", privateKeyParamters, new SecureRandom());
             }
-            byte[] certificateData = System.IO.File.ReadAllBytes(certificatePath);            
+            byte[] certificateData = System.IO.File.ReadAllBytes(certificatePath);
             _serverCertificate = new(certificateData);
         }
 
@@ -74,9 +74,9 @@ namespace AuthenticationServer.Controllers
                 return Forbid();
 
             Tcu? tcu = (from _tcu in tcuContext.Tcus
-                       where _tcu.Mac == MAC
-                       select _tcu).FirstOrDefault();
-            
+                        where _tcu.Mac == MAC
+                        select _tcu).FirstOrDefault();
+
             if (tcu == null)
                 return Unauthorized();
             if (tcu.Challenge == null)
@@ -115,7 +115,7 @@ namespace AuthenticationServer.Controllers
 
         [HttpPost]
         [Route("csr")]
-        public async Task<IActionResult> SubmitCsr(IFormFile csrRequest,[FromForm] string MAC_Address)
+        public async Task<IActionResult> SubmitCsr(IFormFile csrRequest, [FromForm] string MAC_Address)
         {
             Tcu? tcu = (from _tcu in tcuContext.Tcus
                         where _tcu.Mac == MAC_Address
@@ -134,13 +134,13 @@ namespace AuthenticationServer.Controllers
             certGen.SetPublicKey(csr.GetPublicKey());
             var serialNumber = GenerateSerialNumber();
             certGen.SetSerialNumber(serialNumber);
-            GeneralName macAddressName = new (GeneralName.OtherName, new DerUtf8String(tcu.Mac));
+            GeneralName macAddressName = new(GeneralName.OtherName, new DerUtf8String(tcu.Mac));
             Asn1Encodable macAddressExtensionValue = new GeneralNames(macAddressName);
             X509Extension macAddressExtension = new(false, new DerOctetString(macAddressExtensionValue));
             certGen.AddExtension("2.5.29.48", true, macAddressExtensionValue);
             X509Certificate chainedCertificate = certGen.Generate(_signatureFactory);
-            return File(chainedCertificate.GetEncoded(), 
-                "application/x-x509-ca-cert", 
+            return File(chainedCertificate.GetEncoded(),
+                "application/x-x509-ca-cert",
                 "ChainedCertficate.cer");
         }
 
@@ -163,10 +163,10 @@ namespace AuthenticationServer.Controllers
             string? MAC = GetMAC_FromCertificate(chainedCerticate);
             if (MAC == null)
                 return Forbid();
-            byte[] challenge = GenerateChallege();
+            byte[] challenge = GenerateHashBytes();
             Tcu? tcu = (from _tcu in tcuContext.Tcus
-                       where _tcu.Mac == MAC
-                       select _tcu).FirstOrDefault();
+                        where _tcu.Mac == MAC
+                        select _tcu).FirstOrDefault();
             if (tcu == null)
                 return NotFound();
             IAsymmetricBlockCipher engine = new RsaEngine();
@@ -179,17 +179,6 @@ namespace AuthenticationServer.Controllers
                 encryptedChallenge,
                 "application/octet-stream",
                 "challenge.bin");
-        }
-
-
-
-        private static byte[] GenerateChallege()
-        {
-            var digestor = DigestUtilities.GetDigest("SHA256");
-            byte[] challenge = new byte[digestor.GetDigestSize()];
-            digestor.BlockUpdate(challenge, 0, challenge.Length);
-            digestor.DoFinal(challenge, 0);
-            return challenge;
         }
 
         private static string? GetMAC_FromCertificate(X509Certificate certificate)

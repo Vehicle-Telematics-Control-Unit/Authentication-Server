@@ -28,7 +28,7 @@ namespace AuthenticationServer.Services
                 client.Send(mailMessage);
             }).ContinueWith(previousTask =>
             {
-                client.Disconnect(true); 
+                client.Disconnect(true);
                 client.Dispose();
             });
         }

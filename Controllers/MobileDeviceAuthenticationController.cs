@@ -15,12 +15,12 @@ namespace AuthenticationServer.Controllers
     public class MobileDeviceAuthenticationController : BaseController
     {
         protected readonly IMailService _mailService;
-        public MobileDeviceAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config, IMailService mailService): base(tcuContext, userManager, config)
+        public MobileDeviceAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config, IMailService mailService) : base(tcuContext, userManager, config)
         {
             _mailService = mailService;
         }
 
-    
+
 
         [HttpPost]
         [Route("login")]
@@ -78,11 +78,11 @@ namespace AuthenticationServer.Controllers
 
             device.NotificationToken = userCommand.NotificationToken;
             device.LastLoginTime = DateTime.UtcNow;
-            
+
             var ipAddress = ResolveIPAddress(Request.HttpContext);
             if (ipAddress != null)
                 device.IpAddress = ipAddress;
-            
+
             await tcuContext.SaveChangesAsync();
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
@@ -101,13 +101,13 @@ namespace AuthenticationServer.Controllers
         {
             DateTime currentTime = DateTime.Now;
             var user = await userManager.FindByEmailAsync(verifyUserCommand.UserEmail);
-            var device = (from _device in tcuContext.Devices 
-                          where _device.DeviceId == verifyUserCommand.DeviceId 
+            var device = (from _device in tcuContext.Devices
+                          where _device.DeviceId == verifyUserCommand.DeviceId
                           select _device).FirstOrDefault();
             if (user == null || device == null || verifyUserCommand.Token == null)
                 return Forbid();
-            var OTP = (from _OTP in tcuContext.Otptokens 
-                       where _OTP.Token == int.Parse(verifyUserCommand.Token) 
+            var OTP = (from _OTP in tcuContext.Otptokens
+                       where _OTP.Token == int.Parse(verifyUserCommand.Token)
                        && _OTP.Userid == user.Id
                        select _OTP).FirstOrDefault();
             if (OTP == null)
