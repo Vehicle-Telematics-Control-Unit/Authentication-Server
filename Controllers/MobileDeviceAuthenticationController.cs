@@ -2,6 +2,7 @@
 using AuthenticationServer.Data.Commands;
 using AuthenticationServer.Models;
 using AuthenticationServer.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Security;
@@ -132,6 +133,91 @@ namespace AuthenticationServer.Controllers
                 email = user.Email
             });
         }
+        [HttpPost("editUsername")]
+        [Authorize]
+        public async Task<IActionResult> EditUsername([FromBody]string newUserName)
+        {
+            
+            string? deviceId = (from _claim in User.Claims
+                                where _claim.Type == "deviceId"
+                                select _claim.Value).FirstOrDefault();
+
+            if (deviceId == null)
+                return Unauthorized();
+
+            string? userId = (from _claim in User.Claims
+                              where _claim.Type == ClaimTypes.NameIdentifier
+                              select _claim.Value).FirstOrDefault();
+
+            if (userId == null)
+                return Unauthorized();
+
+            string? hasPrimaryDeviceClaim = (from _claim in User.Claims
+                                where _claim.Type == "HasPrimaryDevice"
+                                select _claim.Value).FirstOrDefault();
+            if (hasPrimaryDeviceClaim == null)
+                return Unauthorized();
+
+            IdentityUser user = await userManager.FindByIdAsync(userId);
+
+            if(user == null) 
+                return Unauthorized();
+            // Check if the new username already exists
+            var isNewUsernameTaken = await IsUsernameTaken(newUserName);
+            if (isNewUsernameTaken)
+            {
+                // New username is already taken, return an error response
+                return BadRequest("Username is already taken.");
+            }
+            // Update the username
+            user.UserName = newUserName;
+            // Save the changes to the database
+            await userManager.UpdateAsync(user);
+            return Ok();
+        }
+
+        private async Task<bool> IsUsernameTaken(string? newUserName)
+        {
+            var existingUser =  await userManager.FindByNameAsync(newUserName);
+            return existingUser != null;
+        }
+
+        [HttpPost("editPassword")]
+        [Authorize]
+        public async Task<IActionResult> EditPassword([FromBody] EditUserCommand editUserCommand)
+        {
+            string? deviceId = (from _claim in User.Claims
+                                where _claim.Type == "deviceId"
+                                select _claim.Value).FirstOrDefault();
+
+            if (deviceId == null)
+                return Unauthorized();
+
+            string? userId = (from _claim in User.Claims
+                              where _claim.Type == ClaimTypes.NameIdentifier
+                              select _claim.Value).FirstOrDefault();
+
+            if (userId == null)
+                return Unauthorized();
+
+            string? hasPrimaryDeviceClaim = (from _claim in User.Claims
+                                             where _claim.Type == "HasPrimaryDevice"
+                                             select _claim.Value).FirstOrDefault();
+            if (hasPrimaryDeviceClaim == null)
+                return Unauthorized();
+            IdentityUser user = await userManager.FindByIdAsync(userId);
+
+            var isCrdentialsCorrect = await userManager.CheckPasswordAsync(user, editUserCommand.Password);
+            if (isCrdentialsCorrect == false)
+                return Unauthorized();
+
+            await userManager.ChangePasswordAsync(user, editUserCommand.Password, editUserCommand.NewPassword);
+            return Ok();    
+
+        }
+
+
+
     }
 }
 
