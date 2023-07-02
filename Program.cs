@@ -3,12 +3,12 @@ using AuthenticationServer.Data;
 using AuthenticationServer.Models;
 using AuthenticationServer.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.HttpOverrides;
-using System.Text;
 using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -128,6 +128,17 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim("HasPrimaryDevice", "yes");
         policy.RequireClaim("deviceId");
     });
+
+    options.AddPolicy("TCUOnly", policy =>
+    {
+        policy.RequireClaim("TCU", "True");
+    });
+
+    options.AddPolicy("MobileOnly", policy =>
+    {
+        policy.RequireClaim("deviceId");
+    });
+
 });
 
 

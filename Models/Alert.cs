@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace AuthenticationServer.Models;
+﻿namespace AuthenticationServer.Models;
 
 public partial class Alert
 {
@@ -11,7 +8,9 @@ public partial class Alert
 
     public DateTime LogTimeStamp { get; set; }
 
-    public virtual ObdCode ObdCodeNavigation { get; set; } = null!;
+    public string Description { get; set; } = null!;
+
+    public string Status { get; set; } = null!;
 
     public virtual Tcu Tcu { get; set; } = null!;
 }

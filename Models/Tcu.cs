@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace AuthenticationServer.Models;
+﻿namespace AuthenticationServer.Models;
 
 public partial class Tcu
 {
@@ -16,6 +13,10 @@ public partial class Tcu
     public DateTime? ExpiresAt { get; set; }
 
     public byte[]? Challenge { get; set; }
+
+    public string? Username { get; set; }
+
+    public string? Password { get; set; }
 
     public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 

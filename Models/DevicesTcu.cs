@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace AuthenticationServer.Models;
+﻿namespace AuthenticationServer.Models;
 
 public partial class DevicesTcu
 {
@@ -11,7 +8,7 @@ public partial class DevicesTcu
 
     public bool IsPrimary { get; set; }
 
-    public bool? IsActive { get; set; }
+    public bool IsActive { get; set; }
 
     public virtual Device Device { get; set; } = null!;
 
