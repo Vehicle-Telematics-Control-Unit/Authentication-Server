@@ -209,7 +209,7 @@ namespace AuthenticationServer.Controllers
 
             var isCrdentialsCorrect = await userManager.CheckPasswordAsync(user, editUserCommand.Password);
             if (isCrdentialsCorrect == false)
-                return Unauthorized();
+                return BadRequest();
 
             await userManager.ChangePasswordAsync(user, editUserCommand.Password, editUserCommand.NewPassword);
             return Ok();    
