@@ -1,4 +1,7 @@
-﻿namespace AuthenticationServer.Models;
+﻿using System;
+using System.Collections.Generic;
+
+namespace AuthenticationServer.Models;
 
 public partial class Tcu
 {
@@ -18,6 +21,8 @@ public partial class Tcu
 
     public string? Password { get; set; }
 
+    public long ModelId { get; set; }
+
     public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 
     public virtual ICollection<ConnectionRequest> ConnectionRequests { get; set; } = new List<ConnectionRequest>();
@@ -25,6 +30,10 @@ public partial class Tcu
     public virtual ICollection<DevicesTcu> DevicesTcus { get; set; } = new List<DevicesTcu>();
 
     public virtual ICollection<LockRequest> LockRequests { get; set; } = new List<LockRequest>();
+
+    public virtual Model Model { get; set; } = null!;
+
+    public virtual ICollection<Tcufeature> Tcufeatures { get; set; } = new List<Tcufeature>();
 
     public virtual AspNetUser User { get; set; } = null!;
 }

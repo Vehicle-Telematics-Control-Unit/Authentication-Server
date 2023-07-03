@@ -1,4 +1,7 @@
-﻿namespace AuthenticationServer.Models;
+﻿using System;
+using System.Collections.Generic;
+
+namespace AuthenticationServer.Models;
 
 public partial class AspNetUserClaim
 {
