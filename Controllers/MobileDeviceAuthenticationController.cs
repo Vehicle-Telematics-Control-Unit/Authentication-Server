@@ -64,7 +64,7 @@ namespace AuthenticationServer.Controllers
                     TcuId = tcu.TcuId,
                     DeviceId = device.DeviceId,
                     IsActive = true,
-                    IsPrimary = true
+                    IsPrimary = false
                 };
 
                 tcuContext.DevicesTcus.Add(deviceTCU);
