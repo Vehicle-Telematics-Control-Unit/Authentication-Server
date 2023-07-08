@@ -122,8 +122,12 @@ namespace AuthenticationServer.Controllers
                       where _device.DeviceId == command.deviceId
                       select _device).FirstOrDefault();
 
+            if (command.TcuId == null)
+                return BadRequest();
+
             if (device == null)
             {
+
                 device = new Device
                 {
                     DeviceId = command.deviceId,
@@ -132,9 +136,19 @@ namespace AuthenticationServer.Controllers
                     IpAddress = ipAdress,
                     NotificationToken = command.NotificationToken,
                 };
+                
+                var deviceTCU = new DevicesTcu
+                {
+                    TcuId = (long)command.TcuId,
+                    DeviceId = command.deviceId,
+                    IsActive = true,
+                    IsPrimary = false
+                };
 
                 tcuContext.Devices.Add(device);
+                tcuContext.DevicesTcus.Add(deviceTCU);
                 tcuContext.SaveChanges();
+
             }
 
 
