@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace AuthenticationServer.Controllers
 {
@@ -16,12 +17,12 @@ namespace AuthenticationServer.Controllers
     public class MobileDeviceAuthenticationController : BaseController
     {
         protected readonly IMailService _mailService;
-        public MobileDeviceAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config, IMailService mailService) : base(tcuContext, userManager, config)
+        public MobileDeviceAuthenticationController(TcuContext tcuContext, UserManager<IdentityUser> userManager, IConfiguration config, IMailService mailService): base(tcuContext, userManager, config)
         {
             _mailService = mailService;
         }
 
-
+    
 
         [HttpPost]
         [Route("login")]
@@ -50,6 +51,23 @@ namespace AuthenticationServer.Controllers
                     UserId = user.Id,
                     IpAddress = ipAdress
                 };
+                IdentityUser _user = await userManager.FindByIdAsync(user.Id);
+                var tcu = (from _tcu in tcuContext.Tcus
+                           where _tcu.UserId == _user.Id
+                           select _tcu).FirstOrDefault();
+
+                if (tcu == null)
+                    Forbid();
+
+                var deviceTCU = new DevicesTcu
+                {
+                    TcuId = tcu.TcuId,
+                    DeviceId = device.DeviceId,
+                    IsActive = true,
+                    IsPrimary = true
+                };
+
+                tcuContext.DevicesTcus.Add(deviceTCU);
                 tcuContext.Devices.Add(device);
                 tcuContext.SaveChanges();
             }
@@ -79,11 +97,11 @@ namespace AuthenticationServer.Controllers
 
             device.NotificationToken = userCommand.NotificationToken;
             device.LastLoginTime = DateTime.UtcNow;
-
+            
             var ipAddress = ResolveIPAddress(Request.HttpContext);
             if (ipAddress != null)
                 device.IpAddress = ipAddress;
-
+            
             await tcuContext.SaveChangesAsync();
             var authClaims = await GetUserClaims(user);
             authClaims.Add(new Claim("deviceId", device.DeviceId.ToString()));
@@ -102,13 +120,13 @@ namespace AuthenticationServer.Controllers
         {
             DateTime currentTime = DateTime.Now;
             var user = await userManager.FindByEmailAsync(verifyUserCommand.UserEmail);
-            var device = (from _device in tcuContext.Devices
-                          where _device.DeviceId == verifyUserCommand.DeviceId
+            var device = (from _device in tcuContext.Devices 
+                          where _device.DeviceId == verifyUserCommand.DeviceId 
                           select _device).FirstOrDefault();
             if (user == null || device == null || verifyUserCommand.Token == null)
                 return Forbid();
-            var OTP = (from _OTP in tcuContext.Otptokens
-                       where _OTP.Token == int.Parse(verifyUserCommand.Token)
+            var OTP = (from _OTP in tcuContext.Otptokens 
+                       where _OTP.Token == int.Parse(verifyUserCommand.Token) 
                        && _OTP.Userid == user.Id
                        select _OTP).FirstOrDefault();
             if (OTP == null)
@@ -137,7 +155,7 @@ namespace AuthenticationServer.Controllers
         [Authorize]
         public async Task<IActionResult> EditUsername([FromBody]string newUserName)
         {
-            
+            Console.WriteLine("username is"+newUserName);
             string? deviceId = (from _claim in User.Claims
                                 where _claim.Type == "deviceId"
                                 select _claim.Value).FirstOrDefault();
@@ -172,7 +190,9 @@ namespace AuthenticationServer.Controllers
             // Update the username
             user.UserName = newUserName;
             // Save the changes to the database
-            await userManager.UpdateAsync(user);
+             var isUpdated=await userManager.UpdateAsync(user);
+            if (isUpdated.Succeeded == false)
+                return BadRequest();
             return Ok();
         }
 
@@ -209,9 +229,10 @@ namespace AuthenticationServer.Controllers
 
             var isCrdentialsCorrect = await userManager.CheckPasswordAsync(user, editUserCommand.Password);
             if (isCrdentialsCorrect == false)
-                return BadRequest();
+                return Unauthorized();
 
             await userManager.ChangePasswordAsync(user, editUserCommand.Password, editUserCommand.NewPassword);
+
             return Ok();    
 
         }
