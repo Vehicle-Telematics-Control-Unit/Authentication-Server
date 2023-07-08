@@ -57,7 +57,7 @@ namespace AuthenticationServer.Controllers
                            select _tcu).FirstOrDefault();
 
                 if (tcu == null)
-                    Forbid();
+                    return Forbid();
 
                 var deviceTCU = new DevicesTcu
                 {
