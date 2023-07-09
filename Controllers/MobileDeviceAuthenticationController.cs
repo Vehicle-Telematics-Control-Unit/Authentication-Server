@@ -57,7 +57,7 @@ namespace AuthenticationServer.Controllers
                            select _tcu).FirstOrDefault();
 
                 if (tcu == null)
-                    Forbid();
+                    return Forbid();
 
                 var deviceTCU = new DevicesTcu
                 {
@@ -237,7 +237,61 @@ namespace AuthenticationServer.Controllers
 
         }
 
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> LogOut()
+        {
+            string? deviceId = (from _claim in User.Claims
+                                where _claim.Type == "deviceId"
+                                select _claim.Value).FirstOrDefault();
+            if (deviceId == null)
+                return Unauthorized();
 
+            string? userId = (from _claim in User.Claims
+                              where _claim.Type == ClaimTypes.NameIdentifier
+                              select _claim.Value).FirstOrDefault();
+
+            if (userId == null)
+                return Unauthorized();
+
+            Device? device;
+            device = (from _device in tcuContext.Devices
+                      where _device.DeviceId == deviceId
+                      select _device).FirstOrDefault();
+
+            if (device == null)
+                return Unauthorized();
+
+            List<ConnectionRequest> connectionRequests = (from _requests in tcuContext.ConnectionRequests
+                                                          where _requests.DeviceId == device.DeviceId
+                                                          select _requests).ToList();
+
+            IdentityUser _user = await userManager.FindByIdAsync(userId);
+            var tcu = (from _tcu in tcuContext.Tcus
+                       where _tcu.UserId == _user.Id
+                       select _tcu).FirstOrDefault();
+            if (tcu == null)
+                return Forbid();
+
+            if(tcu.DevicesTcus != null && device != null)
+            {
+                var deviceTcu = (from _deviceTcu in tcuContext.DevicesTcus
+                                  where _deviceTcu.DeviceId == device.DeviceId
+                                  select _deviceTcu).FirstOrDefault();
+                if (deviceTcu != null)
+                {
+                    tcuContext.DevicesTcus.Remove(deviceTcu);
+                }
+            }
+            
+            tcuContext.ConnectionRequests.RemoveRange(connectionRequests);
+            if (device != null)
+                tcuContext.Devices.Remove(device);
+           
+            await tcuContext.SaveChangesAsync();
+            return Ok();
+            
+        }
 
     }
 }
