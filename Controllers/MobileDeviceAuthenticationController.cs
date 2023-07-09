@@ -151,6 +151,38 @@ namespace AuthenticationServer.Controllers
                 email = user.Email
             });
         }
+
+        [HttpPost("resendcode")]
+        public async Task<IActionResult> ResendCode([FromBody] ResendCodeCommand resendCodeCommand)
+        {
+            var user = await FindUser(resendCodeCommand.Username);
+            if (user == null)
+                return Unauthorized();
+            Device? device;
+            device = (from _device in tcuContext.Devices
+                      where _device.DeviceId == resendCodeCommand.DeviceId
+                      select _device).FirstOrDefault();
+            if (device == null)
+                return Unauthorized();
+            SecureRandom secureRandom = new SecureRandom();
+            var twoFactorAuthToken = secureRandom.Next(MIN_OTP_LENGTH, MAX_OTP_LENGTH);
+            MailData mailMessage = new(new string[] { user.Email }, "OTP Confirmation", twoFactorAuthToken.ToString());
+            await _mailService.SendEmail(mailMessage);
+            tcuContext.Otptokens.Add(new Otptoken
+            {
+                Token = twoFactorAuthToken,
+                Userid = user.Id,
+                Verifiedat = DateTime.Now 
+            });
+            tcuContext.SaveChanges();
+            return Ok(new
+            {
+                message = "otp code sent",
+                email = user.Email
+            });
+           
+        }
+
         [HttpPost("editUsername")]
         [Authorize]
         public async Task<IActionResult> EditUsername([FromBody]string newUserName)
